@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
 
 // Assume these icons are imported from an icon library
 import {
+  BoxCubeIcon,
   ChevronDownIcon,
   GridIcon,
   HorizontaLDots,
@@ -11,11 +12,16 @@ import {
   UserCircleIcon,
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
+import { useAuth } from "../context/AuthContext";
+import { SCRAPER_META } from "../context/ScraperContext";
+import type { Role } from "../services/auth.types";
 
 type NavItem = {
   name: string;
   icon: React.ReactNode;
   path?: string;
+  // Si se indica, el item solo es visible para esos roles.
+  roles?: Role[];
   subItems?: { name: string; path: string; pro?: boolean; new?: boolean }[];
 };
 
@@ -35,6 +41,16 @@ const navItems: NavItem[] = [
     icon: <PageIcon />,
     subItems: [{ name: "Blank Page", path: "/blank", pro: false }],
   },
+  {
+    icon: <BoxCubeIcon />,
+    name: "Datos externos",
+    roles: ["ADMIN"],
+    subItems: [
+      { name: SCRAPER_META.instagram.label, path: SCRAPER_META.instagram.path },
+      { name: SCRAPER_META.facebook.label, path: SCRAPER_META.facebook.path },
+      { name: SCRAPER_META.website.label, path: SCRAPER_META.website.path },
+    ],
+  },
 ];
 
 const othersItems: NavItem[] = [
@@ -50,7 +66,19 @@ const othersItems: NavItem[] = [
 
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
+  const { hasRole } = useAuth();
   const location = useLocation();
+
+  // Oculta los items restringidos por rol (ej. "Datos externos" solo para ADMIN).
+  const isVisible = useCallback(
+    (item: NavItem) => !item.roles || item.roles.some((r) => hasRole(r)),
+    [hasRole],
+  );
+  const visibleNavItems = useMemo(() => navItems.filter(isVisible), [isVisible]);
+  const visibleOthersItems = useMemo(
+    () => othersItems.filter(isVisible),
+    [isVisible],
+  );
 
   const [openSubmenu, setOpenSubmenu] = useState<{
     type: "main" | "others";
@@ -70,7 +98,7 @@ const AppSidebar: React.FC = () => {
   useEffect(() => {
     let submenuMatched = false;
     ["main", "others"].forEach((menuType) => {
-      const items = menuType === "main" ? navItems : othersItems;
+      const items = menuType === "main" ? visibleNavItems : visibleOthersItems;
       items.forEach((nav, index) => {
         if (nav.subItems) {
           nav.subItems.forEach((subItem) => {
@@ -89,7 +117,7 @@ const AppSidebar: React.FC = () => {
     if (!submenuMatched) {
       setOpenSubmenu(null);
     }
-  }, [location, isActive]);
+  }, [location, isActive, visibleNavItems, visibleOthersItems]);
 
   useEffect(() => {
     if (openSubmenu !== null) {
@@ -304,7 +332,7 @@ const AppSidebar: React.FC = () => {
                   <HorizontaLDots className="size-6" />
                 )}
               </h2>
-              {renderMenuItems(navItems, "main")}
+              {renderMenuItems(visibleNavItems, "main")}
             </div>
             <div className="">
               <h2
@@ -320,7 +348,7 @@ const AppSidebar: React.FC = () => {
                   <HorizontaLDots />
                 )}
               </h2>
-              {renderMenuItems(othersItems, "others")}
+              {renderMenuItems(visibleOthersItems, "others")}
             </div>
           </div>
         </nav>
