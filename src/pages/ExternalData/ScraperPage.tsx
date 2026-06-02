@@ -1,12 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import ComponentCard from "../../components/common/ComponentCard";
+import Spinner from "../../components/common/Spinner";
 import Label from "../../components/form/Label";
 import Input from "../../components/form/input/InputField";
 import TextArea from "../../components/form/input/TextArea";
 import Button from "../../components/ui/button/Button";
-import Badge from "../../components/ui/badge/Badge";
 import Alert from "../../components/ui/alert/Alert";
 import {
   Table,
@@ -16,6 +16,7 @@ import {
   TableRow,
 } from "../../components/ui/table";
 import { useScraper, type ScraperSource } from "../../context/ScraperContext";
+import CollectedDataTable from "./CollectedDataTable";
 
 interface SourceConfig {
   title: string;
@@ -58,28 +59,21 @@ const PHASE_LABEL: Record<string, string> = {
   saving: "Procesando y guardando resultados…",
 };
 
-function Spinner() {
-  return (
-    <svg
-      className="animate-spin h-5 w-5 text-brand-500"
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-    >
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path
-        className="opacity-75"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-      />
-    </svg>
-  );
-}
-
 export default function ScraperPage({ source }: { source: ScraperSource }) {
   const config = SOURCE_CONFIG[source];
   const { jobs, startScrape } = useScraper();
   const job = jobs[source];
+
+  // Cuando un scraping termina, incrementamos este token para que la tabla
+  // histórica ("Datos recolectados") se recargue con los nuevos registros.
+  const [reloadToken, setReloadToken] = useState(0);
+  const prevPhase = useRef(job?.phase);
+  useEffect(() => {
+    if (prevPhase.current !== "done" && job?.phase === "done") {
+      setReloadToken((t) => t + 1);
+    }
+    prevPhase.current = job?.phase;
+  }, [job?.phase]);
 
   const [urlsText, setUrlsText] = useState("");
   const [limit, setLimit] = useState("50");
@@ -207,15 +201,15 @@ export default function ScraperPage({ source }: { source: ScraperSource }) {
         </ComponentCard>
       </div>
 
-      {/* ── Resultados ── */}
+      {/* ── Resultados del último scraping (en memoria, del run recién ejecutado) ── */}
       {job?.phase === "done" && job.results.length > 0 && (
         <div className="mt-6">
-          <ComponentCard title={`Datos recolectados (${job.results.length})`}>
+          <ComponentCard title={`Datos recolectados en el último scraping (${job.results.length})`}>
             <div className="max-w-full overflow-x-auto">
               <Table>
                 <TableHeader className="border-b border-gray-100 dark:border-gray-800">
                   <TableRow>
-                    {["Producto", "Competidor", "Precio", "Promoción", "Stock"].map((h) => (
+                    {["Producto", "Competidor", "Precio", "Promoción"].map((h) => (
                       <TableCell
                         key={h}
                         isHeader
@@ -241,11 +235,6 @@ export default function ScraperPage({ source }: { source: ScraperSource }) {
                       <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                         {r.promotions ?? "—"}
                       </TableCell>
-                      <TableCell className="px-4 py-3 text-sm">
-                        <Badge color={r.is_in_stock ? "success" : "error"} variant="light">
-                          {r.is_in_stock ? "En stock" : "Agotado"}
-                        </Badge>
-                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -254,6 +243,11 @@ export default function ScraperPage({ source }: { source: ScraperSource }) {
           </ComponentCard>
         </div>
       )}
+
+      {/* ── Histórico: todos los datos recolectados para esta plataforma ── */}
+      <div className="mt-6">
+        <CollectedDataTable source={source} reloadToken={reloadToken} />
+      </div>
     </>
   );
 }
