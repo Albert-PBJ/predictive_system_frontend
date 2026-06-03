@@ -8,7 +8,6 @@ import {
   GridIcon,
   HorizontaLDots,
   PageIcon,
-  PlugInIcon,
   UserCircleIcon,
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
@@ -53,16 +52,9 @@ const navItems: NavItem[] = [
   },
 ];
 
-const othersItems: NavItem[] = [
-  {
-    icon: <PlugInIcon />,
-    name: "Authentication",
-    subItems: [
-      { name: "Sign In", path: "/signin", pro: false },
-      { name: "Sign Up", path: "/signup", pro: false },
-    ],
-  },
-];
+// Sin items por ahora. El logout se hace desde el header (menú de usuario),
+// por lo que no se incluye un menú de "Authentication" en la barra lateral.
+const othersItems: NavItem[] = [];
 
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
@@ -284,33 +276,21 @@ const AppSidebar: React.FC = () => {
     >
       <div
         className={`py-8 flex ${
-          !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
+          !isExpanded && !isHovered ? "lg:justify-center" : "justify-center"
         }`}
       >
-        <Link to="/">
+        <Link to="/" className="w-full">
           {isExpanded || isHovered || isMobileOpen ? (
-            <>
-              <img
-                className="dark:hidden"
-                src="/images/logo/logo.svg"
-                alt="Logo"
-                width={150}
-                height={40}
-              />
-              <img
-                className="hidden dark:block"
-                src="/images/logo/logo-dark.svg"
-                alt="Logo"
-                width={150}
-                height={40}
-              />
-            </>
+            <img
+              src="/images/logo/maescar-logo.jpg"
+              alt="Inversiones Maescar"
+              className="w-full h-24 object-cover rounded-md"
+            />
           ) : (
             <img
-              src="/images/logo/logo-icon.svg"
-              alt="Logo"
-              width={32}
-              height={32}
+              src="/images/logo/maescar-logo.jpg"
+              alt="Inversiones Maescar"
+              className="h-10 w-10 rounded-md object-contain"
             />
           )}
         </Link>
@@ -334,22 +314,24 @@ const AppSidebar: React.FC = () => {
               </h2>
               {renderMenuItems(visibleNavItems, "main")}
             </div>
-            <div className="">
-              <h2
-                className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${
-                  !isExpanded && !isHovered
-                    ? "lg:justify-center"
-                    : "justify-start"
-                }`}
-              >
-                {isExpanded || isHovered || isMobileOpen ? (
-                  "Others"
-                ) : (
-                  <HorizontaLDots />
-                )}
-              </h2>
-              {renderMenuItems(visibleOthersItems, "others")}
-            </div>
+            {visibleOthersItems.length > 0 && (
+              <div className="">
+                <h2
+                  className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${
+                    !isExpanded && !isHovered
+                      ? "lg:justify-center"
+                      : "justify-start"
+                  }`}
+                >
+                  {isExpanded || isHovered || isMobileOpen ? (
+                    "Others"
+                  ) : (
+                    <HorizontaLDots />
+                  )}
+                </h2>
+                {renderMenuItems(visibleOthersItems, "others")}
+              </div>
+            )}
           </div>
         </nav>
       </div>

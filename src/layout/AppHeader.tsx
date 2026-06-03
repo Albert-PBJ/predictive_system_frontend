@@ -83,16 +83,11 @@ const AppHeader: React.FC = () => {
             {/* Cross Icon */}
           </button>
 
-          <Link to="/" className="lg:hidden">
+          <Link to="/" className="lg:hidden w-[35%]">
             <img
-              className="dark:hidden"
-              src="./images/logo/logo.svg"
-              alt="Logo"
-            />
-            <img
-              className="hidden dark:block"
-              src="./images/logo/logo-dark.svg"
-              alt="Logo"
+              src="/images/logo/maescar-logo.jpg"
+              alt="Inversiones Maescar"
+              className="h-10 rounded-md object-cover w-full"
             />
           </Link>
 
@@ -116,7 +111,7 @@ const AppHeader: React.FC = () => {
             </svg>
           </button>
 
-          <div className="hidden lg:block">
+          {/* <div className="hidden lg:block">
             <form>
               <div className="relative">
                 <span className="absolute -translate-y-1/2 pointer-events-none left-4 top-1/2">
@@ -149,7 +144,7 @@ const AppHeader: React.FC = () => {
                 </button>
               </div>
             </form>
-          </div>
+          </div> */}
         </div>
         <div
           className={`${
