@@ -16,7 +16,7 @@ import { api } from "../services/api";
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api";
 const SCRAPERS_ROOT = API_BASE.replace(/\/api\/?$/, "");
 
-export type ScraperSource = "instagram" | "facebook" | "website";
+export type ScraperSource = "instagram" | "facebook" | "website" | "mercadolibre";
 
 // Metadatos compartidos (etiqueta + ruta) usados por el menú, las páginas y
 // las notificaciones, para tener una única fuente de verdad.
@@ -24,6 +24,7 @@ export const SCRAPER_META: Record<ScraperSource, { label: string; path: string }
   instagram: { label: "Instagram", path: "/datos-externos/instagram" },
   facebook: { label: "Facebook Marketplace", path: "/datos-externos/facebook" },
   website: { label: "Sitios Web", path: "/datos-externos/web" },
+  mercadolibre: { label: "Mercado Libre", path: "/datos-externos/mercadolibre" },
 };
 
 export type ScraperPhase =

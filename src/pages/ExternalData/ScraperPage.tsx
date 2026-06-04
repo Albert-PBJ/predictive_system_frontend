@@ -21,6 +21,9 @@ import CollectedDataTable from "./CollectedDataTable";
 interface SourceConfig {
   title: string;
   description: string;
+  // Etiqueta del campo de entrada. La mayoría de fuentes reciben URLs; Mercado
+  // Libre recibe términos de búsqueda.
+  inputLabel: string;
   urlPlaceholder: string;
   urlHint: string;
   showCompetitor: boolean;
@@ -31,6 +34,7 @@ const SOURCE_CONFIG: Record<ScraperSource, SourceConfig> = {
     title: "Instagram",
     description:
       "Recolecta publicaciones de perfiles de Instagram de la competencia y extrae precios, promociones y disponibilidad.",
+    inputLabel: "URLs",
     urlPlaceholder: "https://www.instagram.com/competidor/",
     urlHint: "Una URL de perfil de Instagram por línea.",
     showCompetitor: false,
@@ -39,6 +43,7 @@ const SOURCE_CONFIG: Record<ScraperSource, SourceConfig> = {
     title: "Facebook Marketplace",
     description:
       "Recolecta publicaciones de Facebook Marketplace de la competencia y extrae precios, categorías y disponibilidad.",
+    inputLabel: "URLs",
     urlPlaceholder: "https://www.facebook.com/marketplace/item/123/",
     urlHint: "Una URL de Marketplace por línea.",
     showCompetitor: false,
@@ -46,10 +51,20 @@ const SOURCE_CONFIG: Record<ScraperSource, SourceConfig> = {
   website: {
     title: "Sitios Web",
     description:
-      "Recolecta productos directamente desde páginas web de la competencia usando el AI web scraper.",
+      "Recolecta productos desde páginas web de la competencia usando el AI web scraper. Extrae nombre, precio, categoría, disponibilidad, entrega y promociones. Para Mercado Libre, usa la página dedicada.",
+    inputLabel: "URLs",
     urlPlaceholder: "https://competidor.com/productos/",
     urlHint: "Una URL de sitio web por línea.",
     showCompetitor: true,
+  },
+  mercadolibre: {
+    title: "Mercado Libre",
+    description:
+      "Busca productos en Mercado Libre Venezuela por términos de búsqueda (usa un actor con proxy dedicado). Extrae precio, vendedor, ubicación, disponibilidad y promociones.",
+    inputLabel: "Términos de búsqueda",
+    urlPlaceholder: "Sillas de oficina",
+    urlHint: "Un término de búsqueda por línea (p. ej. \"Escritorio en L\").",
+    showCompetitor: false,
   },
 };
 
@@ -114,7 +129,7 @@ export default function ScraperPage({ source }: { source: ScraperSource }) {
         {/* ── Configuración / disparador ── */}
         <ComponentCard title="Configuración de la recolección" desc={config.description}>
           <div>
-            <Label htmlFor="urls">URLs</Label>
+            <Label htmlFor="urls">{config.inputLabel}</Label>
             <TextArea
               rows={5}
               value={urlsText}
@@ -143,7 +158,7 @@ export default function ScraperPage({ source }: { source: ScraperSource }) {
                 type="text"
                 value={competitorName}
                 onChange={(e) => setCompetitorName(e.target.value)}
-                placeholder="Si se omite, se deriva del dominio"
+                placeholder="Si se omite, se usa el nombre del sitio (p. ej. Mercado Libre)"
                 disabled={isActive}
               />
             </div>

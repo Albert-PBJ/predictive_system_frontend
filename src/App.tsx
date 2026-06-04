@@ -58,6 +58,14 @@ export default function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route
+                  path="/datos-externos/mercadolibre"
+                  element={
+                    <ProtectedRoute roles={["ADMIN"]}>
+                      <ScraperPage source="mercadolibre" />
+                    </ProtectedRoute>
+                  }
+                />
               </Route>
 
               {/* Auth Layout */}
