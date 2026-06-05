@@ -6,8 +6,8 @@ export default function SignIn() {
   return (
     <>
       <PageMeta
-        title="Sign In"
-        description="Sign In"
+        title="Iniciar sesión"
+        description="Iniciar sesión en el sistema"
       />
       <AuthLayout>
         <SignInForm />

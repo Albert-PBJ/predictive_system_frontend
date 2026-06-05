@@ -30,12 +30,12 @@ type NavItem = {
 const navItems: NavItem[] = [
   {
     icon: <GridIcon />,
-    name: "Dashboard",
+    name: "Inicio",
     path: "/",
   },
   {
     icon: <UserCircleIcon />,
-    name: "User Profile",
+    name: "Perfil de usuario",
     path: "/profile",
   },
   {
@@ -54,9 +54,9 @@ const navItems: NavItem[] = [
     path: "/inventario",
   },
   {
-    name: "Pages",
+    name: "Páginas",
     icon: <PageIcon />,
-    subItems: [{ name: "Blank Page", path: "/blank", pro: false }],
+    subItems: [{ name: "Página en blanco", path: "/blank", pro: false }],
   },
   {
     icon: <BoxCubeIcon />,
@@ -326,7 +326,7 @@ const AppSidebar: React.FC = () => {
                 }`}
               >
                 {isExpanded || isHovered || isMobileOpen ? (
-                  "Menu"
+                  "Menú"
                 ) : (
                   <HorizontaLDots className="size-6" />
                 )}
@@ -343,7 +343,7 @@ const AppSidebar: React.FC = () => {
                   }`}
                 >
                   {isExpanded || isHovered || isMobileOpen ? (
-                    "Others"
+                    "Otros"
                   ) : (
                     <HorizontaLDots />
                   )}
