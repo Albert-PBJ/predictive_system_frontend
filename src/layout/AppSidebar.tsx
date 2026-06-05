@@ -4,7 +4,9 @@ import { Link, useLocation } from "react-router";
 // Assume these icons are imported from an icon library
 import {
   BoxCubeIcon,
+  BoxIconLine,
   ChevronDownIcon,
+  DollarLineIcon,
   GridIcon,
   HorizontaLDots,
   PageIcon,
@@ -14,6 +16,7 @@ import { useSidebar } from "../context/SidebarContext";
 import { useAuth } from "../context/AuthContext";
 import { SCRAPER_META } from "../context/ScraperContext";
 import type { Role } from "../services/auth.types";
+import { SELLER_AND_ABOVE } from "../services/types";
 
 type NavItem = {
   name: string;
@@ -34,6 +37,21 @@ const navItems: NavItem[] = [
     icon: <UserCircleIcon />,
     name: "User Profile",
     path: "/profile",
+  },
+  {
+    icon: <DollarLineIcon />,
+    name: "Ventas",
+    roles: SELLER_AND_ABOVE,
+    subItems: [
+      { name: "Registrar venta", path: "/ventas/registrar" },
+      { name: "Historial de ventas", path: "/ventas/historial" },
+    ],
+  },
+  {
+    icon: <BoxIconLine />,
+    name: "Inventario",
+    roles: SELLER_AND_ABOVE,
+    path: "/inventario",
   },
   {
     name: "Pages",

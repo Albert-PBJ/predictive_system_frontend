@@ -10,6 +10,10 @@ import { AuthProvider } from "./context/AuthContext";
 import { ScraperProvider } from "./context/ScraperContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import ScraperPage from "./pages/ExternalData/ScraperPage";
+import RegisterSale from "./pages/Sales/RegisterSale";
+import SalesHistory from "./pages/Sales/SalesHistory";
+import StockControl from "./pages/Inventory/StockControl";
+import { SELLER_AND_ABOVE } from "./services/types";
 
 export default function App() {
   return (
@@ -32,6 +36,34 @@ export default function App() {
                 {/* Others Page */}
                 <Route path="/profile" element={<UserProfiles />} />
                 <Route path="/blank" element={<Blank />} />
+
+                {/* Ventas — Vendedor o superior */}
+                <Route
+                  path="/ventas/registrar"
+                  element={
+                    <ProtectedRoute roles={SELLER_AND_ABOVE}>
+                      <RegisterSale />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/ventas/historial"
+                  element={
+                    <ProtectedRoute roles={SELLER_AND_ABOVE}>
+                      <SalesHistory />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Inventario — Vendedor o superior */}
+                <Route
+                  path="/inventario"
+                  element={
+                    <ProtectedRoute roles={SELLER_AND_ABOVE}>
+                      <StockControl />
+                    </ProtectedRoute>
+                  }
+                />
 
                 {/* Datos externos (scrapers) — solo ADMIN */}
                 <Route
