@@ -34,7 +34,7 @@ JWT against the Django API. The flow is layered — when touching it, change the
 - `context/AuthContext.tsx` — `useAuth()` exposes `user`, `role`, `isAuthenticated`, `isLoading`, `login`, `logout`, `hasRole(...roles)`. Bootstraps `user` from a stored token on mount and listens for `SESSION_EXPIRED_EVENT` to clear state.
 - `components/auth/ProtectedRoute.tsx` — wraps routes; redirects to `/signin` (remembering origin via router `state.from`) when unauthenticated, and to `/` when authenticated but lacking a required role. Accepts optional `roles?: Role[]`.
 
-`Role` is `"ADMIN" | "MANAGER" | "SELLER" | "VIEWER"` (`services/auth.types.ts`). The backend API and validation messages are in **Spanish**; comments in this repo are Spanish too, identifiers in English — match that.
+`Role` is `"ADMIN" | "MANAGER" | "SELLER" | "WAREHOUSE" | "VIEWER"` (`services/auth.types.ts`). The roles are **non-linear**: WAREHOUSE (inventory manager) is a sibling of SELLER. Reusable role groups live in `services/types.ts` — `CAN_REGISTER_SALES`, `CAN_MANAGE_STOCK`, `OPERATIONAL_ROLES` — use these for `ProtectedRoute roles={...}`, sidebar `roles`, and in-page `hasRole(...)` gating rather than hardcoding arrays. The backend API and validation messages are in **Spanish**; comments in this repo are Spanish too, identifiers in English — match that.
 
 ### Wiring new data screens
 Import `{ api }` from `services/api.ts` and call it directly — token attachment and refresh are handled for you. Don't create new axios instances. Base URL comes from `VITE_API_BASE_URL` in `.env` (defaults to `http://127.0.0.1:8000/api`); the backend dev server is at `http://127.0.0.1:8000`, data under `/api/`, scrapers under `/scrapers/`. Everything requires a valid token.

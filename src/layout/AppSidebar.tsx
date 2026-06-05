@@ -16,7 +16,16 @@ import { useSidebar } from "../context/SidebarContext";
 import { useAuth } from "../context/AuthContext";
 import { SCRAPER_META } from "../context/ScraperContext";
 import type { Role } from "../services/auth.types";
-import { SELLER_AND_ABOVE } from "../services/types";
+import { CAN_REGISTER_SALES, OPERATIONAL_ROLES } from "../services/types";
+
+type SubItem = {
+  name: string;
+  path: string;
+  pro?: boolean;
+  new?: boolean;
+  // Si se indica, el subitem solo es visible para esos roles.
+  roles?: Role[];
+};
 
 type NavItem = {
   name: string;
@@ -24,7 +33,7 @@ type NavItem = {
   path?: string;
   // Si se indica, el item solo es visible para esos roles.
   roles?: Role[];
-  subItems?: { name: string; path: string; pro?: boolean; new?: boolean }[];
+  subItems?: SubItem[];
 };
 
 const navItems: NavItem[] = [
@@ -41,16 +50,17 @@ const navItems: NavItem[] = [
   {
     icon: <DollarLineIcon />,
     name: "Ventas",
-    roles: SELLER_AND_ABOVE,
+    roles: OPERATIONAL_ROLES,
     subItems: [
-      { name: "Registrar venta", path: "/ventas/registrar" },
+      // El encargado de inventario ve las ventas pero no las registra.
+      { name: "Registrar venta", path: "/ventas/registrar", roles: CAN_REGISTER_SALES },
       { name: "Historial de ventas", path: "/ventas/historial" },
     ],
   },
   {
     icon: <BoxIconLine />,
     name: "Inventario",
-    roles: SELLER_AND_ABOVE,
+    roles: OPERATIONAL_ROLES,
     path: "/inventario",
   },
   {
@@ -80,15 +90,32 @@ const AppSidebar: React.FC = () => {
   const { hasRole } = useAuth();
   const location = useLocation();
 
-  // Oculta los items restringidos por rol (ej. "Datos externos" solo para ADMIN).
-  const isVisible = useCallback(
-    (item: NavItem) => !item.roles || item.roles.some((r) => hasRole(r)),
+  // Filtra por rol tanto los items como sus subitems (ej. "Datos externos" solo
+  // para ADMIN; "Ventas › Registrar venta" oculto para el encargado de inventario).
+  // Un grupo se oculta si no le queda ningún subitem visible ni enlace propio.
+  const filterByRole = useCallback(
+    (item: NavItem): NavItem | null => {
+      if (item.roles && !item.roles.some((r) => hasRole(r))) return null;
+      if (item.subItems) {
+        const subItems = item.subItems.filter(
+          (s) => !s.roles || s.roles.some((r) => hasRole(r)),
+        );
+        if (subItems.length === 0 && !item.path) return null;
+        return { ...item, subItems };
+      }
+      return item;
+    },
     [hasRole],
   );
-  const visibleNavItems = useMemo(() => navItems.filter(isVisible), [isVisible]);
+  const filterItems = useCallback(
+    (items: NavItem[]) =>
+      items.map(filterByRole).filter((i): i is NavItem => i !== null),
+    [filterByRole],
+  );
+  const visibleNavItems = useMemo(() => filterItems(navItems), [filterItems]);
   const visibleOthersItems = useMemo(
-    () => othersItems.filter(isVisible),
-    [isVisible],
+    () => filterItems(othersItems),
+    [filterItems],
   );
 
   const [openSubmenu, setOpenSubmenu] = useState<{

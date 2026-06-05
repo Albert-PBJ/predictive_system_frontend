@@ -27,6 +27,7 @@ import {
 } from "../../services/salesService";
 import { getApiError } from "../../services/apiError";
 import { fmtUSD, fmtVES, fmtDate } from "../../utils/format";
+import { CAN_REGISTER_SALES } from "../../services/types";
 
 const PAGE_SIZE = 10;
 
@@ -40,6 +41,8 @@ function statusColor(status: string): "success" | "warning" | "error" | "light" 
 export default function SalesHistory() {
   const { hasRole } = useAuth();
   const canVoid = hasRole("ADMIN", "MANAGER");
+  // El encargado de inventario ve las ventas, pero no las registra.
+  const canRegisterSales = hasRole(...CAN_REGISTER_SALES);
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -155,9 +158,11 @@ export default function SalesHistory() {
             <Button variant="outline" size="sm" onClick={clearFilters} disabled={!hasFilters} className="w-full">
               Limpiar
             </Button>
-            <Link to="/ventas/registrar" className="w-full">
-              <Button size="sm" className="w-full">Nueva venta</Button>
-            </Link>
+            {canRegisterSales && (
+              <Link to="/ventas/registrar" className="w-full">
+                <Button size="sm" className="w-full">Nueva venta</Button>
+              </Link>
+            )}
           </div>
         </div>
 

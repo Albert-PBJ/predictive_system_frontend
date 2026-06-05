@@ -26,10 +26,17 @@ import {
 } from "../../services/inventoryService";
 import { getApiError } from "../../services/apiError";
 import { fmtUSD, fmtDate } from "../../utils/format";
+import { useAuth } from "../../context/AuthContext";
+import { CAN_MANAGE_STOCK } from "../../services/types";
 
 const MOV_PAGE_SIZE = 10;
 
 export default function StockControl() {
+  // Los vendedores solo consultan el stock; modificarlo (movimientos manuales)
+  // queda para el encargado de inventario o superior.
+  const { hasRole } = useAuth();
+  const canManageStock = hasRole(...CAN_MANAGE_STOCK);
+
   // ── Tabla de stock ──
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -138,11 +145,13 @@ export default function StockControl() {
           icon={<BoxIconLine className="text-warning-500 size-6" />}
           highlight={lowCount > 0}
         />
-        <div className="flex items-center justify-center rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-          <Button startIcon={<PlusIcon className="size-5" />} onClick={() => openModalFor(null)}>
-            Registrar movimiento
-          </Button>
-        </div>
+        {canManageStock && (
+          <div className="flex items-center justify-center rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+            <Button startIcon={<PlusIcon className="size-5" />} onClick={() => openModalFor(null)}>
+              Registrar movimiento
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Tabla de stock */}
@@ -170,8 +179,8 @@ export default function StockControl() {
           <Table>
             <TableHeader className="border-b border-gray-100 dark:border-gray-800">
               <TableRow>
-                {["SKU", "Producto", "Categoría", "Stock", "Mínimo", "Estado", "Precio venta", ""].map((h) => (
-                  <TableCell key={h} isHeader className="px-4 py-3 text-left text-theme-xs font-medium text-gray-500 dark:text-gray-400">
+                {["SKU", "Producto", "Categoría", "Stock", "Mínimo", "Estado", "Precio venta", ...(canManageStock ? [""] : [])].map((h, i) => (
+                  <TableCell key={h || `acc-${i}`} isHeader className="px-4 py-3 text-left text-theme-xs font-medium text-gray-500 dark:text-gray-400">
                     {h}
                   </TableCell>
                 ))}
@@ -210,11 +219,13 @@ export default function StockControl() {
                       </Badge>
                     </TableCell>
                     <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{fmtUSD(p.sale_price_usd)}</TableCell>
-                    <TableCell className="px-4 py-3">
-                      <button type="button" onClick={() => openModalFor(p)} className="text-sm font-medium text-brand-500 hover:text-brand-600">
-                        Movimiento
-                      </button>
-                    </TableCell>
+                    {canManageStock && (
+                      <TableCell className="px-4 py-3">
+                        <button type="button" onClick={() => openModalFor(p)} className="text-sm font-medium text-brand-500 hover:text-brand-600">
+                          Movimiento
+                        </button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}
