@@ -17,6 +17,7 @@ import {
 } from "../../components/ui/table";
 import { useScraper, type ScraperSource } from "../../context/ScraperContext";
 import CollectedDataTable from "./CollectedDataTable";
+import RejectedDataTable from "./RejectedDataTable";
 
 interface SourceConfig {
   title: string;
@@ -262,6 +263,11 @@ export default function ScraperPage({ source }: { source: ScraperSource }) {
       {/* ── Histórico: todos los datos recolectados para esta plataforma ── */}
       <div className="mt-6">
         <CollectedDataTable source={source} reloadToken={reloadToken} />
+      </div>
+
+      {/* ── Datos descartados por la validación de calidad (datos defectuosos) ── */}
+      <div className="mt-6">
+        <RejectedDataTable source={source} reloadToken={reloadToken} />
       </div>
     </>
   );

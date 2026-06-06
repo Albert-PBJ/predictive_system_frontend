@@ -9,6 +9,7 @@ import {
   DollarLineIcon,
   GridIcon,
   HorizontaLDots,
+  ListIcon,
   PageIcon,
   UserCircleIcon,
 } from "../icons";
@@ -16,7 +17,7 @@ import { useSidebar } from "../context/SidebarContext";
 import { useAuth } from "../context/AuthContext";
 import { SCRAPER_META } from "../context/ScraperContext";
 import type { Role } from "../services/auth.types";
-import { CAN_REGISTER_SALES, OPERATIONAL_ROLES } from "../services/types";
+import { CAN_MANAGE_PRODUCTS, CAN_REGISTER_SALES, OPERATIONAL_ROLES } from "../services/types";
 
 type SubItem = {
   name: string;
@@ -62,6 +63,12 @@ const navItems: NavItem[] = [
     name: "Inventario",
     roles: OPERATIONAL_ROLES,
     path: "/inventario",
+  },
+  {
+    icon: <ListIcon />,
+    name: "Productos",
+    roles: CAN_MANAGE_PRODUCTS,
+    path: "/productos",
   },
   {
     name: "Páginas",

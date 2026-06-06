@@ -27,3 +27,7 @@ export const CAN_MANAGE_STOCK: Role[] = ["ADMIN", "MANAGER", "WAREHOUSE"];
 
 // Personal operativo: consulta compartida de ventas, inventario y catálogo.
 export const OPERATIONAL_ROLES: Role[] = ["ADMIN", "MANAGER", "SELLER", "WAREHOUSE"];
+
+// Pueden gestionar el catálogo de productos (alta/edición). Espejo del backend,
+// donde la escritura de productos es de Gerente o superior.
+export const CAN_MANAGE_PRODUCTS: Role[] = ["ADMIN", "MANAGER"];

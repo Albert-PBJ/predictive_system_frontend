@@ -13,39 +13,16 @@ import {
   TableHeader,
   TableRow,
 } from "../../components/ui/table";
-import { api } from "../../services/api";
+import MarketDataEditModal from "../../components/scrapers/MarketDataEditModal";
+import {
+  scraperDataService,
+  type DataResponse,
+  type MarketDataRow,
+} from "../../services/scraperDataService";
+import { getApiError } from "../../services/apiError";
 import type { ScraperSource } from "../../context/ScraperContext";
 
-// Las rutas de scrapers viven en /scrapers/ (no bajo /api/). Derivamos la raíz del
-// backend desde la base de la API, igual que en ScraperContext.
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api";
-const SCRAPERS_ROOT = API_BASE.replace(/\/api\/?$/, "");
-
 const PAGE_SIZE = 10;
-
-interface MarketDataRow {
-  id: number;
-  competitor_name: string | null;
-  product_name: string | null;
-  category: string | null;
-  price: string | null;
-  currency: string | null;
-  promotions: string | null;
-  state: string | null;
-  municipality: string | null;
-  url: string | null;
-  scraped_at: string | null;
-}
-
-interface DataResponse {
-  count: number;
-  page: number;
-  page_size: number;
-  num_pages: number;
-  results: MarketDataRow[];
-  available_states: string[];
-  available_municipalities: string[];
-}
 
 // Muestra "—" para valores vacíos, nulos o solo espacios.
 function dash(value: string | null | undefined): string {
@@ -61,14 +38,6 @@ function formatDate(iso: string | null): string {
     : d.toLocaleDateString("es-VE", { year: "numeric", month: "2-digit", day: "2-digit" });
 }
 
-function errorMessage(err: unknown): string {
-  if (typeof err === "object" && err !== null) {
-    const maybe = err as { response?: { data?: { error?: string } } };
-    if (maybe.response?.data?.error) return maybe.response.data.error;
-  }
-  return "No se pudieron cargar los datos recolectados.";
-}
-
 const COLUMNS = [
   "Producto",
   "Competidor",
@@ -78,6 +47,7 @@ const COLUMNS = [
   "Municipio",
   "Promoción",
   "Fecha",
+  "",
 ];
 
 export default function CollectedDataTable({
@@ -103,6 +73,13 @@ export default function CollectedDataTable({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Edición / borrado
+  const [editing, setEditing] = useState<MarketDataRow | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  // Token local para recargar tras editar/eliminar (sumado al reloadToken externo).
+  const [localReload, setLocalReload] = useState(0);
+
   // Debounce de la búsqueda para no disparar una petición por tecla.
   useEffect(() => {
     const id = window.setTimeout(() => setDebouncedSearch(search), 400);
@@ -114,7 +91,7 @@ export default function CollectedDataTable({
     setPage(1);
   }, [debouncedSearch, minPrice, maxPrice, stateFilter, municipalityFilter, source]);
 
-  // Carga de datos. Se reejecuta ante cambios de filtros, página, fuente o reloadToken.
+  // Carga de datos. Se reejecuta ante cambios de filtros, página, fuente o recargas.
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -127,14 +104,14 @@ export default function CollectedDataTable({
     if (stateFilter) params.state = stateFilter;
     if (municipalityFilter) params.municipality = municipalityFilter;
 
-    api
-      .get<DataResponse>(`${SCRAPERS_ROOT}/scrapers/${source}/data`, { params })
-      .then(({ data }) => {
-        if (active) setData(data);
+    scraperDataService
+      .listData(source, params)
+      .then((res) => {
+        if (active) setData(res);
       })
       .catch((err) => {
         if (active) {
-          setError(errorMessage(err));
+          setError(getApiError(err, "No se pudieron cargar los datos recolectados."));
           setData(null);
         }
       })
@@ -145,7 +122,7 @@ export default function CollectedDataTable({
     return () => {
       active = false;
     };
-  }, [source, page, debouncedSearch, minPrice, maxPrice, stateFilter, municipalityFilter, reloadToken]);
+  }, [source, page, debouncedSearch, minPrice, maxPrice, stateFilter, municipalityFilter, reloadToken, localReload]);
 
   const stateOptions = useMemo(
     () => (data?.available_states ?? []).map((s) => ({ value: s, label: s })),
@@ -169,6 +146,26 @@ export default function CollectedDataTable({
     setFiltersKey((k) => k + 1); // remonta los <Select> para que muestren el placeholder
   };
 
+  const openEdit = (row: MarketDataRow) => {
+    setEditing(row);
+    setModalOpen(true);
+  };
+
+  const handleDelete = async (row: MarketDataRow) => {
+    const label = row.product_name?.trim() || "este registro";
+    if (!window.confirm(`¿Eliminar "${label}"? Esta acción no se puede deshacer.`)) return;
+    setDeletingId(row.id);
+    setError(null);
+    try {
+      await scraperDataService.deleteData(source, row.id);
+      setLocalReload((t) => t + 1);
+    } catch (err) {
+      setError(getApiError(err, "No se pudo eliminar el registro."));
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const count = data?.count ?? 0;
   const numPages = data?.num_pages ?? 1;
   const rows = data?.results ?? [];
@@ -190,52 +187,22 @@ export default function CollectedDataTable({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div>
             <Label htmlFor="minPrice">Precio mín.</Label>
-            <Input
-              type="number"
-              min="0"
-              placeholder="0"
-              value={minPrice}
-              onChange={(e) => setMinPrice(e.target.value)}
-            />
+            <Input type="number" min="0" placeholder="0" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} />
           </div>
           <div>
             <Label htmlFor="maxPrice">Precio máx.</Label>
-            <Input
-              type="number"
-              min="0"
-              placeholder="Sin límite"
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(e.target.value)}
-            />
+            <Input type="number" min="0" placeholder="Sin límite" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} />
           </div>
           <div>
             <Label htmlFor="state">Estado</Label>
-            <Select
-              key={`state-${filtersKey}`}
-              options={stateOptions}
-              placeholder="Todos"
-              defaultValue={stateFilter}
-              onChange={setStateFilter}
-            />
+            <Select key={`state-${filtersKey}`} options={stateOptions} placeholder="Todos" defaultValue={stateFilter} onChange={setStateFilter} />
           </div>
           <div>
             <Label htmlFor="municipality">Municipio</Label>
-            <Select
-              key={`municipality-${filtersKey}`}
-              options={municipalityOptions}
-              placeholder="Todos"
-              defaultValue={municipalityFilter}
-              onChange={setMunicipalityFilter}
-            />
+            <Select key={`municipality-${filtersKey}`} options={municipalityOptions} placeholder="Todos" defaultValue={municipalityFilter} onChange={setMunicipalityFilter} />
           </div>
           <div className="flex items-end">
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={clearFilters}
-              disabled={!hasFilters}
-            >
+            <Button variant="outline" size="sm" className="w-full" onClick={clearFilters} disabled={!hasFilters}>
               Limpiar filtros
             </Button>
           </div>
@@ -245,7 +212,7 @@ export default function CollectedDataTable({
       {/* ── Estados de error/carga/vacío ── */}
       {error && (
         <div className="mt-4">
-          <Alert variant="error" title="Error al cargar" message={error} />
+          <Alert variant="error" title="Error" message={error} />
         </div>
       )}
 
@@ -254,12 +221,8 @@ export default function CollectedDataTable({
         <Table>
           <TableHeader className="border-b border-gray-100 dark:border-gray-800">
             <TableRow>
-              {COLUMNS.map((h) => (
-                <TableCell
-                  key={h}
-                  isHeader
-                  className="px-4 py-3 text-left text-theme-xs font-medium text-gray-500 dark:text-gray-400"
-                >
+              {COLUMNS.map((h, i) => (
+                <TableCell key={h || `acc-${i}`} isHeader className="px-4 py-3 text-left text-theme-xs font-medium text-gray-500 dark:text-gray-400">
                   {h}
                 </TableCell>
               ))}
@@ -288,38 +251,36 @@ export default function CollectedDataTable({
                 <TableRow key={r.id}>
                   <TableCell className="px-4 py-3 text-sm text-gray-800 dark:text-white/90">
                     {r.url ? (
-                      <a
-                        href={r.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:text-brand-500 hover:underline"
-                      >
+                      <a href={r.url} target="_blank" rel="noopener noreferrer" className="hover:text-brand-500 hover:underline">
                         {dash(r.product_name)}
                       </a>
                     ) : (
                       dash(r.product_name)
                     )}
                   </TableCell>
-                  <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                    {dash(r.competitor_name)}
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                    {dash(r.category)}
-                  </TableCell>
+                  <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{dash(r.competitor_name)}</TableCell>
+                  <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{dash(r.category)}</TableCell>
                   <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                     {r.price ? `${r.price} ${r.currency ?? ""}`.trim() : "—"}
                   </TableCell>
-                  <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                    {dash(r.state)}
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                    {dash(r.municipality)}
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                    {dash(r.promotions)}
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                    {formatDate(r.scraped_at)}
+                  <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{dash(r.state)}</TableCell>
+                  <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{dash(r.municipality)}</TableCell>
+                  <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{dash(r.promotions)}</TableCell>
+                  <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{formatDate(r.scraped_at)}</TableCell>
+                  <TableCell className="px-4 py-3">
+                    <div className="flex gap-3 whitespace-nowrap">
+                      <button type="button" onClick={() => openEdit(r)} className="text-sm font-medium text-brand-500 hover:text-brand-600">
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(r)}
+                        disabled={deletingId === r.id}
+                        className="text-sm font-medium text-error-500 hover:text-error-600 disabled:opacity-50"
+                      >
+                        {deletingId === r.id ? "Eliminando…" : "Eliminar"}
+                      </button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -331,29 +292,25 @@ export default function CollectedDataTable({
       {/* ── Paginación ── */}
       <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          {count > 0
-            ? `Página ${data?.page ?? page} de ${numPages} · ${count} registro(s)`
-            : "Sin registros"}
+          {count > 0 ? `Página ${data?.page ?? page} de ${numPages} · ${count} registro(s)` : "Sin registros"}
         </p>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={loading || page <= 1}
-          >
+          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={loading || page <= 1}>
             Anterior
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage((p) => Math.min(numPages, p + 1))}
-            disabled={loading || page >= numPages}
-          >
+          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(numPages, p + 1))} disabled={loading || page >= numPages}>
             Siguiente
           </Button>
         </div>
       </div>
+
+      <MarketDataEditModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        source={source}
+        row={editing}
+        onSaved={() => setLocalReload((t) => t + 1)}
+      />
     </ComponentCard>
   );
 }

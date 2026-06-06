@@ -13,7 +13,8 @@ import ScraperPage from "./pages/ExternalData/ScraperPage";
 import RegisterSale from "./pages/Sales/RegisterSale";
 import SalesHistory from "./pages/Sales/SalesHistory";
 import StockControl from "./pages/Inventory/StockControl";
-import { CAN_REGISTER_SALES, OPERATIONAL_ROLES } from "./services/types";
+import ProductsCatalog from "./pages/Products/ProductsCatalog";
+import { CAN_MANAGE_PRODUCTS, CAN_REGISTER_SALES, OPERATIONAL_ROLES } from "./services/types";
 
 export default function App() {
   return (
@@ -62,6 +63,16 @@ export default function App() {
                   element={
                     <ProtectedRoute roles={OPERATIONAL_ROLES}>
                       <StockControl />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Productos — gestión del catálogo (Gerente o superior) */}
+                <Route
+                  path="/productos"
+                  element={
+                    <ProtectedRoute roles={CAN_MANAGE_PRODUCTS}>
+                      <ProductsCatalog />
                     </ProtectedRoute>
                   }
                 />
