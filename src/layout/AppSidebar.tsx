@@ -44,11 +44,6 @@ const navItems: NavItem[] = [
     path: "/",
   },
   {
-    icon: <UserCircleIcon />,
-    name: "Perfil de usuario",
-    path: "/profile",
-  },
-  {
     icon: <DollarLineIcon />,
     name: "Ventas",
     roles: OPERATIONAL_ROLES,
@@ -71,19 +66,13 @@ const navItems: NavItem[] = [
     path: "/productos",
   },
   {
-    name: "Páginas",
-    icon: <PageIcon />,
-    subItems: [{ name: "Página en blanco", path: "/blank", pro: false }],
-  },
-  {
     icon: <BoxCubeIcon />,
     name: "Datos externos",
     roles: ["ADMIN"],
     subItems: [
       { name: SCRAPER_META.instagram.label, path: SCRAPER_META.instagram.path },
-      { name: SCRAPER_META.facebook.label, path: SCRAPER_META.facebook.path },
-      { name: SCRAPER_META.website.label, path: SCRAPER_META.website.path },
       { name: SCRAPER_META.mercadolibre.label, path: SCRAPER_META.mercadolibre.path },
+      { name: SCRAPER_META.website.label, path: SCRAPER_META.website.path },
     ],
   },
 ];
