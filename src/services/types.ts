@@ -31,3 +31,8 @@ export const OPERATIONAL_ROLES: Role[] = ["ADMIN", "MANAGER", "SELLER", "WAREHOU
 // Pueden gestionar el catálogo de productos (alta/edición). Espejo del backend,
 // donde la escritura de productos es de Gerente o superior.
 export const CAN_MANAGE_PRODUCTS: Role[] = ["ADMIN", "MANAGER"];
+
+// Pueden ver el módulo predictivo (pronósticos y análisis). Son herramientas de
+// decisión estratégica "para el dueño": Gerente o Administrador. Espejo del backend
+// (IsManager en apps/analytics).
+export const CAN_VIEW_FORECASTS: Role[] = ["ADMIN", "MANAGER"];

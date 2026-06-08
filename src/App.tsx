@@ -14,7 +14,21 @@ import RegisterSale from "./pages/Sales/RegisterSale";
 import SalesHistory from "./pages/Sales/SalesHistory";
 import StockControl from "./pages/Inventory/StockControl";
 import ProductsCatalog from "./pages/Products/ProductsCatalog";
-import { CAN_MANAGE_PRODUCTS, CAN_REGISTER_SALES, OPERATIONAL_ROLES } from "./services/types";
+import PredictionsOverview from "./pages/Predictions/PredictionsOverview";
+import DemandForecast from "./pages/Predictions/DemandForecast";
+import SalesForecast from "./pages/Predictions/SalesForecast";
+import ProfitForecast from "./pages/Predictions/ProfitForecast";
+import ExchangeRateForecast from "./pages/Predictions/ExchangeRateForecast";
+import ProductPriceForecast from "./pages/Predictions/ProductPriceForecast";
+import InventoryForecast from "./pages/Predictions/InventoryForecast";
+import QuoteConversionForecast from "./pages/Predictions/QuoteConversionForecast";
+import CompetitorAnalysis from "./pages/Predictions/CompetitorAnalysis";
+import {
+  CAN_MANAGE_PRODUCTS,
+  CAN_REGISTER_SALES,
+  CAN_VIEW_FORECASTS,
+  OPERATIONAL_ROLES,
+} from "./services/types";
 
 export default function App() {
   return (
@@ -73,6 +87,80 @@ export default function App() {
                   element={
                     <ProtectedRoute roles={CAN_MANAGE_PRODUCTS}>
                       <ProductsCatalog />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Módulo predictivo — Gerente o Administrador */}
+                <Route
+                  path="/predicciones"
+                  element={
+                    <ProtectedRoute roles={CAN_VIEW_FORECASTS}>
+                      <PredictionsOverview />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/predicciones/demanda"
+                  element={
+                    <ProtectedRoute roles={CAN_VIEW_FORECASTS}>
+                      <DemandForecast />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/predicciones/ventas"
+                  element={
+                    <ProtectedRoute roles={CAN_VIEW_FORECASTS}>
+                      <SalesForecast />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/predicciones/utilidad"
+                  element={
+                    <ProtectedRoute roles={CAN_VIEW_FORECASTS}>
+                      <ProfitForecast />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/predicciones/tasa-cambio"
+                  element={
+                    <ProtectedRoute roles={CAN_VIEW_FORECASTS}>
+                      <ExchangeRateForecast />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/predicciones/precios"
+                  element={
+                    <ProtectedRoute roles={CAN_VIEW_FORECASTS}>
+                      <ProductPriceForecast />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/predicciones/inventario"
+                  element={
+                    <ProtectedRoute roles={CAN_VIEW_FORECASTS}>
+                      <InventoryForecast />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/predicciones/presupuestos"
+                  element={
+                    <ProtectedRoute roles={CAN_VIEW_FORECASTS}>
+                      <QuoteConversionForecast />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/predicciones/competencia"
+                  element={
+                    <ProtectedRoute roles={CAN_VIEW_FORECASTS}>
+                      <CompetitorAnalysis />
                     </ProtectedRoute>
                   }
                 />

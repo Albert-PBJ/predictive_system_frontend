@@ -10,14 +10,18 @@ import {
   GridIcon,
   HorizontaLDots,
   ListIcon,
-  PageIcon,
-  UserCircleIcon,
+  PieChartIcon,
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import { useAuth } from "../context/AuthContext";
 import { SCRAPER_META } from "../context/ScraperContext";
 import type { Role } from "../services/auth.types";
-import { CAN_MANAGE_PRODUCTS, CAN_REGISTER_SALES, OPERATIONAL_ROLES } from "../services/types";
+import {
+  CAN_MANAGE_PRODUCTS,
+  CAN_REGISTER_SALES,
+  CAN_VIEW_FORECASTS,
+  OPERATIONAL_ROLES,
+} from "../services/types";
 
 type SubItem = {
   name: string;
@@ -64,6 +68,22 @@ const navItems: NavItem[] = [
     name: "Productos",
     roles: CAN_MANAGE_PRODUCTS,
     path: "/productos",
+  },
+  {
+    icon: <PieChartIcon />,
+    name: "Predicciones",
+    roles: CAN_VIEW_FORECASTS,
+    subItems: [
+      { name: "Panel predictivo", path: "/predicciones" },
+      { name: "Demanda por producto", path: "/predicciones/demanda" },
+      { name: "Ventas e ingresos", path: "/predicciones/ventas" },
+      { name: "Utilidad y márgenes", path: "/predicciones/utilidad" },
+      { name: "Tasa de cambio (BCV)", path: "/predicciones/tasa-cambio" },
+      { name: "Precios de productos", path: "/predicciones/precios" },
+      { name: "Inventario y reabastecimiento", path: "/predicciones/inventario" },
+      { name: "Conversión de presupuestos", path: "/predicciones/presupuestos" },
+      { name: "Mercado y competencia", path: "/predicciones/competencia" },
+    ],
   },
   {
     icon: <BoxCubeIcon />,
