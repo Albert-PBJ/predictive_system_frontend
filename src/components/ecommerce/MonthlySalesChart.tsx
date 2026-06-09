@@ -1,139 +1,61 @@
 import Chart from "react-apexcharts";
 import { ApexOptions } from "apexcharts";
-import { Dropdown } from "../ui/dropdown/Dropdown";
-import { DropdownItem } from "../ui/dropdown/DropdownItem";
-import { MoreDotIcon } from "../../icons";
-import { useState } from "react";
+import { useTheme } from "../../context/ThemeContext";
+import type { MonthlySalesPoint } from "../../services/statsService";
+import { fmtCompactUSD, fmtUSD } from "../../utils/format";
 
-export default function MonthlySalesChart() {
+/** Ingresos mensuales (USD) de los últimos 12 meses — datos reales de la BD. */
+export default function MonthlySalesChart({ data }: { data: MonthlySalesPoint[] }) {
+  const { theme } = useTheme();
+  const dark = theme === "dark";
+
   const options: ApexOptions = {
     colors: ["#465fff"],
     chart: {
       fontFamily: "Outfit, sans-serif",
       type: "bar",
-      height: 180,
-      toolbar: {
-        show: false,
-      },
+      height: 200,
+      toolbar: { show: false },
     },
     plotOptions: {
-      bar: {
-        horizontal: false,
-        columnWidth: "39%",
-        borderRadius: 5,
-        borderRadiusApplication: "end",
-      },
+      bar: { horizontal: false, columnWidth: "45%", borderRadius: 5, borderRadiusApplication: "end" },
     },
-    dataLabels: {
-      enabled: false,
-    },
-    stroke: {
-      show: true,
-      width: 4,
-      colors: ["transparent"],
-    },
+    dataLabels: { enabled: false },
+    stroke: { show: true, width: 4, colors: ["transparent"] },
     xaxis: {
-      categories: [
-        "Ene",
-        "Feb",
-        "Mar",
-        "Abr",
-        "May",
-        "Jun",
-        "Jul",
-        "Ago",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dic",
-      ],
-      axisBorder: {
-        show: false,
-      },
-      axisTicks: {
-        show: false,
+      categories: data.map((d) => d.label),
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+      labels: {
+        rotate: -45,
+        rotateAlways: data.length > 8,
+        style: { colors: dark ? "#98a2b3" : "#667085", fontSize: "11px" },
       },
     },
-    legend: {
-      show: true,
-      position: "top",
-      horizontalAlign: "left",
-      fontFamily: "Outfit",
-    },
+    legend: { show: false },
     yaxis: {
-      title: {
-        text: undefined,
+      labels: {
+        style: { colors: dark ? "#98a2b3" : "#667085", fontSize: "11px" },
+        formatter: (v: number) => fmtCompactUSD(v),
       },
     },
-    grid: {
-      yaxis: {
-        lines: {
-          show: true,
-        },
-      },
-    },
-    fill: {
-      opacity: 1,
-    },
-
+    grid: { borderColor: dark ? "#1d2939" : "#f2f4f7", yaxis: { lines: { show: true } } },
+    fill: { opacity: 1 },
     tooltip: {
-      x: {
-        show: false,
-      },
-      y: {
-        formatter: (val: number) => `${val}`,
-      },
+      theme: dark ? "dark" : "light",
+      x: { show: true },
+      y: { formatter: (val: number) => fmtUSD(val) },
     },
   };
-  const series = [
-    {
-      name: "Ventas",
-      data: [168, 385, 201, 298, 187, 195, 291, 110, 215, 390, 280, 112],
-    },
-  ];
-  const [isOpen, setIsOpen] = useState(false);
+  const series = [{ name: "Ingresos", data: data.map((d) => d.revenue) }];
 
-  function toggleDropdown() {
-    setIsOpen(!isOpen);
-  }
-
-  function closeDropdown() {
-    setIsOpen(false);
-  }
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-5 pt-5 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-          Ventas mensuales
-        </h3>
-        <div className="relative inline-block">
-          <button className="dropdown-toggle" onClick={toggleDropdown}>
-            <MoreDotIcon className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 size-6" />
-          </button>
-          <Dropdown
-            isOpen={isOpen}
-            onClose={closeDropdown}
-            className="w-40 p-2"
-          >
-            <DropdownItem
-              onItemClick={closeDropdown}
-              className="flex w-full font-normal text-left text-gray-500 rounded-lg hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
-            >
-              Ver más
-            </DropdownItem>
-            <DropdownItem
-              onItemClick={closeDropdown}
-              className="flex w-full font-normal text-left text-gray-500 rounded-lg hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
-            >
-              Eliminar
-            </DropdownItem>
-          </Dropdown>
-        </div>
-      </div>
-
+      <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Ingresos mensuales</h3>
+      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Últimos 12 meses (ventas completadas)</p>
       <div className="max-w-full overflow-x-auto custom-scrollbar">
         <div className="-ml-5 min-w-[650px] xl:min-w-full pl-2">
-          <Chart options={options} series={series} type="bar" height={180} />
+          <Chart options={options} series={series} type="bar" height={200} />
         </div>
       </div>
     </div>

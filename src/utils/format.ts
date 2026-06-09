@@ -13,6 +13,29 @@ export function fmtVES(value: string | number | null | undefined): string {
   return `Bs ${n.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+// Entero con separador de miles (es-VE).
+export function fmtInt(value: string | number | null | undefined): string {
+  const n = Number(value ?? 0);
+  if (Number.isNaN(n)) return "—";
+  return n.toLocaleString("es-VE", { maximumFractionDigits: 0 });
+}
+
+// USD compacto para titulares de tarjetas/gráficos: $1.2K, $928K, $1.3M.
+export function fmtCompactUSD(value: string | number | null | undefined): string {
+  const n = Number(value ?? 0);
+  if (Number.isNaN(n)) return "—";
+  const abs = Math.abs(n);
+  if (abs >= 1_000_000) return `$${(n / 1_000_000).toLocaleString("en-US", { maximumFractionDigits: 1 })}M`;
+  if (abs >= 1_000) return `$${(n / 1_000).toLocaleString("en-US", { maximumFractionDigits: 1 })}K`;
+  return `$${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+}
+
+// Porcentaje con signo opcional (para badges de variación).
+export function fmtPct(value: number | null | undefined, digits = 1): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return "—";
+  return `${value.toLocaleString("es-VE", { maximumFractionDigits: digits })}%`;
+}
+
 export function fmtDate(iso: string | null | undefined): string {
   if (!iso) return "—";
   const d = new Date(iso.length <= 10 ? `${iso}T00:00:00` : iso);

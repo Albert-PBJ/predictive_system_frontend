@@ -23,9 +23,14 @@ import ProductPriceForecast from "./pages/Predictions/ProductPriceForecast";
 import InventoryForecast from "./pages/Predictions/InventoryForecast";
 import QuoteConversionForecast from "./pages/Predictions/QuoteConversionForecast";
 import CompetitorAnalysis from "./pages/Predictions/CompetitorAnalysis";
+import CustomersStats from "./pages/Statistics/CustomersStats";
+import ProductsStats from "./pages/Statistics/ProductsStats";
+import SalesStats from "./pages/Statistics/SalesStats";
+import QuotesStats from "./pages/Statistics/QuotesStats";
 import {
   CAN_MANAGE_PRODUCTS,
   CAN_REGISTER_SALES,
+  CAN_VIEW_ANALYTICS,
   CAN_VIEW_FORECASTS,
   OPERATIONAL_ROLES,
 } from "./services/types";
@@ -161,6 +166,40 @@ export default function App() {
                   element={
                     <ProtectedRoute roles={CAN_VIEW_FORECASTS}>
                       <CompetitorAnalysis />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Estadísticas (paneles de situación) — Gerente o Administrador */}
+                <Route
+                  path="/estadisticas/clientes"
+                  element={
+                    <ProtectedRoute roles={CAN_VIEW_ANALYTICS}>
+                      <CustomersStats />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/estadisticas/productos"
+                  element={
+                    <ProtectedRoute roles={CAN_VIEW_ANALYTICS}>
+                      <ProductsStats />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/estadisticas/ventas"
+                  element={
+                    <ProtectedRoute roles={CAN_VIEW_ANALYTICS}>
+                      <SalesStats />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/estadisticas/presupuestos"
+                  element={
+                    <ProtectedRoute roles={CAN_VIEW_ANALYTICS}>
+                      <QuotesStats />
                     </ProtectedRoute>
                   }
                 />

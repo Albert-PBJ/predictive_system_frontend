@@ -11,6 +11,7 @@ import {
   HorizontaLDots,
   ListIcon,
   PieChartIcon,
+  TableIcon,
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import { useAuth } from "../context/AuthContext";
@@ -19,6 +20,7 @@ import type { Role } from "../services/auth.types";
 import {
   CAN_MANAGE_PRODUCTS,
   CAN_REGISTER_SALES,
+  CAN_VIEW_ANALYTICS,
   CAN_VIEW_FORECASTS,
   OPERATIONAL_ROLES,
 } from "../services/types";
@@ -68,6 +70,17 @@ const navItems: NavItem[] = [
     name: "Productos",
     roles: CAN_MANAGE_PRODUCTS,
     path: "/productos",
+  },
+  {
+    icon: <TableIcon />,
+    name: "Estadísticas",
+    roles: CAN_VIEW_ANALYTICS,
+    subItems: [
+      { name: "Clientes", path: "/estadisticas/clientes" },
+      { name: "Productos", path: "/estadisticas/productos" },
+      { name: "Ventas", path: "/estadisticas/ventas" },
+      { name: "Presupuestos", path: "/estadisticas/presupuestos" },
+    ],
   },
   {
     icon: <PieChartIcon />,

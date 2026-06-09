@@ -36,3 +36,8 @@ export const CAN_MANAGE_PRODUCTS: Role[] = ["ADMIN", "MANAGER"];
 // decisión estratégica "para el dueño": Gerente o Administrador. Espejo del backend
 // (IsManager en apps/analytics).
 export const CAN_VIEW_FORECASTS: Role[] = ["ADMIN", "MANAGER"];
+
+// Pueden ver el módulo de estadísticas descriptivas (paneles de situación con
+// utilidad, márgenes y rankings). Igual que los pronósticos: Gerente o Administrador.
+// Espejo del backend (IsManager en apps/analytics/stats_views.py).
+export const CAN_VIEW_ANALYTICS: Role[] = ["ADMIN", "MANAGER"];
