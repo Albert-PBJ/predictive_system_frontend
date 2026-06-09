@@ -36,8 +36,12 @@ import { fmtUSD, fmtVES, todayISO } from "../../utils/format";
 interface Line {
   product: Product;
   quantity: number;
-  unitPrice: string;
+  discountPct: string; // % de descuento sobre el precio de lista
 }
+
+// Precio de lista y precio neto (con descuento) por línea.
+const listPrice = (l: Line) => Number(l.product.sale_price_usd) || 0;
+const netPrice = (l: Line) => listPrice(l) * (1 - (Number(l.discountPct) || 0) / 100);
 
 export default function RegisterSale() {
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -68,7 +72,7 @@ export default function RegisterSale() {
             : l,
         );
       }
-      return [...prev, { product: p, quantity: 1, unitPrice: p.sale_price_usd }];
+      return [...prev, { product: p, quantity: 1, discountPct: "0" }];
     });
   };
 
@@ -81,9 +85,14 @@ export default function RegisterSale() {
   // ── Cálculos ──
   const effectiveRate = rate ? Number(rate.effective_rate) : null;
 
-  const lineSubtotal = (l: Line) => l.quantity * (Number(l.unitPrice) || 0);
+  const lineSubtotal = (l: Line) => l.quantity * netPrice(l);
+  const lineDiscount = (l: Line) => l.quantity * (listPrice(l) - netPrice(l));
   const subtotalUSD = useMemo(
     () => lines.reduce((acc, l) => acc + lineSubtotal(l), 0),
+    [lines],
+  );
+  const totalDiscountUSD = useMemo(
+    () => lines.reduce((acc, l) => acc + lineDiscount(l), 0),
     [lines],
   );
   const totalVES = effectiveRate !== null ? subtotalUSD * effectiveRate : null;
@@ -91,7 +100,8 @@ export default function RegisterSale() {
   const lineError = (l: Line): string | null => {
     if (!Number.isInteger(l.quantity) || l.quantity < 1) return "Cantidad inválida";
     if (l.quantity > l.product.stock) return `Solo hay ${l.product.stock} en stock`;
-    if (Number(l.unitPrice) < 0 || Number.isNaN(Number(l.unitPrice))) return "Precio inválido";
+    const d = Number(l.discountPct);
+    if (Number.isNaN(d) || d < 0 || d > 100) return "Descuento inválido (0–100%)";
     return null;
   };
 
@@ -118,7 +128,7 @@ export default function RegisterSale() {
       items: lines.map((l) => ({
         product: l.product.id,
         quantity: l.quantity,
-        unit_sale_price_usd: l.unitPrice,
+        discount_pct: Number(l.discountPct) || 0,
       })),
     };
     try {
@@ -154,9 +164,10 @@ export default function RegisterSale() {
             title="Venta registrada correctamente"
             message={`Se descontó el inventario y se registró la venta a ${result.customer_name}.`}
           />
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
             <Summary label="Total (USD)" value={fmtUSD(result.total_sale_usd)} />
             <Summary label="Total (VES)" value={fmtVES(result.total_sale_ves)} />
+            <Summary label="Descuento (USD)" value={fmtUSD(result.total_discount_usd)} />
             <Summary label="Utilidad (USD)" value={fmtUSD(result.total_profit_usd)} />
             <Summary label="Comisión (USD)" value={fmtUSD(result.commission_usd)} />
           </div>
@@ -208,7 +219,7 @@ export default function RegisterSale() {
                 <Table>
                   <TableHeader className="border-b border-gray-100 dark:border-gray-800">
                     <TableRow>
-                      {["Producto", "Cantidad", "Precio unit. (USD)", "Subtotal", ""].map((h) => (
+                      {["Producto", "Cantidad", "Precio lista", "Desc. %", "Precio neto", "Subtotal", ""].map((h) => (
                         <TableCell
                           key={h}
                           isHeader
@@ -247,17 +258,24 @@ export default function RegisterSale() {
                               className="h-10 w-20 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-800 focus:border-brand-300 focus:outline-hidden dark:border-gray-700 dark:text-white/90"
                             />
                           </TableCell>
+                          <TableCell className="px-3 py-3 text-sm text-gray-500 dark:text-gray-400">
+                            {fmtUSD(listPrice(l))}
+                          </TableCell>
                           <TableCell className="px-3 py-3">
                             <input
                               type="number"
                               min={0}
-                              step={0.01}
-                              value={l.unitPrice}
+                              max={100}
+                              step={0.5}
+                              value={l.discountPct}
                               onChange={(e) =>
-                                updateLine(l.product.id, { unitPrice: e.target.value })
+                                updateLine(l.product.id, { discountPct: e.target.value })
                               }
-                              className="h-10 w-28 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-800 focus:border-brand-300 focus:outline-hidden dark:border-gray-700 dark:text-white/90"
+                              className="h-10 w-20 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-800 focus:border-brand-300 focus:outline-hidden dark:border-gray-700 dark:text-white/90"
                             />
+                          </TableCell>
+                          <TableCell className="px-3 py-3 text-sm font-medium text-gray-700 dark:text-gray-300">
+                            {fmtUSD(netPrice(l))}
                           </TableCell>
                           <TableCell className="px-3 py-3 text-sm text-gray-700 dark:text-gray-300">
                             {fmtUSD(lineSubtotal(l))}
@@ -312,6 +330,9 @@ export default function RegisterSale() {
             <div className="space-y-3">
               <Row label="Productos" value={`${lines.length} línea(s)`} />
               <Row label="Unidades" value={`${lines.reduce((a, l) => a + l.quantity, 0)}`} />
+              {totalDiscountUSD > 0 && (
+                <Row label="Descuento" value={`− ${fmtUSD(totalDiscountUSD)}`} />
+              )}
               <div className="border-t border-gray-100 pt-3 dark:border-gray-800">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-500 dark:text-gray-400">Total (USD)</span>

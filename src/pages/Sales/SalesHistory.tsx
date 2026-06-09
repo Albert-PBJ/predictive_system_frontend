@@ -273,7 +273,7 @@ export default function SalesHistory() {
               <Table>
                 <TableHeader className="border-b border-gray-100 dark:border-gray-800">
                   <TableRow>
-                    {["Producto", "Cant.", "Precio unit.", "Subtotal"].map((h) => (
+                    {["Producto", "Cant.", "Precio lista", "Desc.", "Precio neto", "Subtotal"].map((h) => (
                       <TableCell key={h} isHeader className="px-3 py-2 text-left text-theme-xs font-medium text-gray-500 dark:text-gray-400">
                         {h}
                       </TableCell>
@@ -288,6 +288,10 @@ export default function SalesHistory() {
                         <span className="block text-xs text-gray-400">{it.product_sku ?? "—"}</span>
                       </TableCell>
                       <TableCell className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">{it.quantity}</TableCell>
+                      <TableCell className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">{fmtUSD(it.unit_list_price_usd)}</TableCell>
+                      <TableCell className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                        {Number(it.discount_pct) > 0 ? `${Number(it.discount_pct)}%` : "—"}
+                      </TableCell>
                       <TableCell className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">{fmtUSD(it.unit_sale_price_usd)}</TableCell>
                       <TableCell className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{fmtUSD(it.subtotal_sale_usd)}</TableCell>
                     </TableRow>
@@ -296,9 +300,10 @@ export default function SalesHistory() {
               </Table>
             </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-5">
               <Field label="Total (USD)" value={fmtUSD(selected.total_sale_usd)} />
               <Field label="Total (VES)" value={fmtVES(selected.total_sale_ves)} />
+              <Field label="Descuento" value={fmtUSD(selected.total_discount_usd)} />
               <Field label="Utilidad" value={fmtUSD(selected.total_profit_usd)} />
               <Field label="Comisión" value={fmtUSD(selected.commission_usd)} />
             </div>

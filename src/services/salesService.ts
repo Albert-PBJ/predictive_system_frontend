@@ -7,6 +7,8 @@ export interface SaleItem {
   product_name: string;
   product_sku: string | null;
   quantity: number;
+  unit_list_price_usd: string;
+  discount_pct: string;
   unit_sale_price_usd: string;
   unit_cost_price_usd: string;
   subtotal_sale_usd: string;
@@ -28,6 +30,7 @@ export interface Sale {
   total_sale_usd: string;
   total_cost_usd: string;
   total_profit_usd: string;
+  total_discount_usd: string;
   total_sale_ves: string | null;
   commission_usd: string;
   bcv_rate: string | null;
@@ -40,6 +43,7 @@ export interface Sale {
 export interface NewSaleItem {
   product: number;
   quantity: number;
+  discount_pct?: string | number;
   unit_sale_price_usd?: string | number;
 }
 
