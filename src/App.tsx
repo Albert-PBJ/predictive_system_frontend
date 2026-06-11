@@ -22,7 +22,8 @@ import ExchangeRateForecast from "./pages/Predictions/ExchangeRateForecast";
 import ProductPriceForecast from "./pages/Predictions/ProductPriceForecast";
 import InventoryForecast from "./pages/Predictions/InventoryForecast";
 import QuoteConversionForecast from "./pages/Predictions/QuoteConversionForecast";
-import CompetitorAnalysis from "./pages/Predictions/CompetitorAnalysis";
+import BenchmarkingComparison from "./pages/Benchmarking/BenchmarkingComparison";
+import BenchmarkingForecast from "./pages/Benchmarking/BenchmarkingForecast";
 import CustomersStats from "./pages/Statistics/CustomersStats";
 import ProductsStats from "./pages/Statistics/ProductsStats";
 import SalesStats from "./pages/Statistics/SalesStats";
@@ -161,11 +162,21 @@ export default function App() {
                     </ProtectedRoute>
                   }
                 />
+
+                {/* Benchmarking Competitivo — Gerente o Administrador */}
                 <Route
-                  path="/predicciones/competencia"
+                  path="/benchmarking/comparaciones"
                   element={
                     <ProtectedRoute roles={CAN_VIEW_FORECASTS}>
-                      <CompetitorAnalysis />
+                      <BenchmarkingComparison />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/benchmarking/predicciones"
+                  element={
+                    <ProtectedRoute roles={CAN_VIEW_FORECASTS}>
+                      <BenchmarkingForecast />
                     </ProtectedRoute>
                   }
                 />
@@ -210,14 +221,6 @@ export default function App() {
                   element={
                     <ProtectedRoute roles={["ADMIN"]}>
                       <ScraperPage source="instagram" />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/datos-externos/facebook"
-                  element={
-                    <ProtectedRoute roles={["ADMIN"]}>
-                      <ScraperPage source="facebook" />
                     </ProtectedRoute>
                   }
                 />

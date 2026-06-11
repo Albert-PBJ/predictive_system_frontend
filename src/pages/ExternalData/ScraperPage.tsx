@@ -40,15 +40,6 @@ const SOURCE_CONFIG: Record<ScraperSource, SourceConfig> = {
     urlHint: "Una URL de perfil de Instagram por línea.",
     showCompetitor: false,
   },
-  facebook: {
-    title: "Facebook Marketplace",
-    description:
-      "Recolecta publicaciones de Facebook Marketplace de la competencia y extrae precios, categorías y disponibilidad.",
-    inputLabel: "URLs",
-    urlPlaceholder: "https://www.facebook.com/marketplace/item/123/",
-    urlHint: "Una URL de Marketplace por línea.",
-    showCompetitor: false,
-  },
   website: {
     title: "Sitios Web",
     description:

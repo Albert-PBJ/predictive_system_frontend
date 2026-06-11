@@ -8,6 +8,7 @@ import {
   ChevronDownIcon,
   DollarLineIcon,
   GridIcon,
+  GroupIcon,
   HorizontaLDots,
   ListIcon,
   PieChartIcon,
@@ -95,7 +96,15 @@ const navItems: NavItem[] = [
       { name: "Precios de productos", path: "/predicciones/precios" },
       { name: "Inventario y reabastecimiento", path: "/predicciones/inventario" },
       { name: "Conversión de presupuestos", path: "/predicciones/presupuestos" },
-      { name: "Mercado y competencia", path: "/predicciones/competencia" },
+    ],
+  },
+  {
+    icon: <GroupIcon />,
+    name: "Benchmarking",
+    roles: CAN_VIEW_FORECASTS,
+    subItems: [
+      { name: "Comparaciones", path: "/benchmarking/comparaciones" },
+      { name: "Predicciones", path: "/benchmarking/predicciones" },
     ],
   },
   {

@@ -8,7 +8,7 @@ import { fmtUSD } from "../../utils/format";
 /**
  * Posición competitiva (instantánea "actual"): precio propio promedio vs. el mercado
  * scrapeado por categoría. Es una vista condensada; el detalle vive en el módulo
- * predictivo de competencia (`/predicciones/competencia`).
+ * "Benchmarking Competitivo" (`/benchmarking/comparaciones`).
  */
 
 const POSITION = {
@@ -26,7 +26,7 @@ export default function CompetitivePanel({ data }: { data: CompetitiveBlock }) {
       subtitle="Precio propio vs. mercado (datos scrapeados · actual)"
       action={
         <Link
-          to="/predicciones/competencia"
+          to="/benchmarking/comparaciones"
           className="text-xs font-medium text-brand-500 hover:text-brand-600 dark:text-brand-400"
         >
           Ver análisis →
