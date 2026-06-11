@@ -21,7 +21,7 @@ import { TrashBinIcon } from "../../icons";
 import CustomerPicker from "../../components/sales/CustomerPicker";
 import ProductPicker from "../../components/sales/ProductPicker";
 import type { Customer } from "../../services/customersService";
-import type { Product } from "../../services/productsService";
+import { isService, type Product } from "../../services/productsService";
 import {
   salesService,
   SALE_TYPES,
@@ -36,12 +36,17 @@ import { fmtUSD, fmtVES, todayISO } from "../../utils/format";
 interface Line {
   product: Product;
   quantity: number;
-  discountPct: string; // % de descuento sobre el precio de lista
+  discountPct: string; // % de descuento sobre el precio de lista (productos físicos)
+  unitPrice: string; // precio unitario flexible en USD (solo servicios, p. ej. Mantenimiento)
 }
 
-// Precio de lista y precio neto (con descuento) por línea.
+// Precio de lista y precio neto por línea. Un **servicio** (Mantenimiento) no tiene
+// precio de lista ni descuento: su precio se escribe a mano en cada venta.
 const listPrice = (l: Line) => Number(l.product.sale_price_usd) || 0;
-const netPrice = (l: Line) => listPrice(l) * (1 - (Number(l.discountPct) || 0) / 100);
+const netPrice = (l: Line) =>
+  isService(l.product)
+    ? Number(l.unitPrice) || 0
+    : listPrice(l) * (1 - (Number(l.discountPct) || 0) / 100);
 
 export default function RegisterSale() {
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -65,14 +70,26 @@ export default function RegisterSale() {
     setLines((prev) => {
       const existing = prev.find((l) => l.product.id === p.id);
       if (existing) {
-        // Si ya está, intenta sumar una unidad sin pasar del stock.
+        // Si ya está, suma una unidad. Un servicio no tiene tope de stock.
         return prev.map((l) =>
           l.product.id === p.id
-            ? { ...l, quantity: Math.min(l.quantity + 1, p.stock) }
+            ? {
+                ...l,
+                quantity: isService(p) ? l.quantity + 1 : Math.min(l.quantity + 1, p.stock),
+              }
             : l,
         );
       }
-      return [...prev, { product: p, quantity: 1, discountPct: "0" }];
+      return [
+        ...prev,
+        {
+          product: p,
+          quantity: 1,
+          discountPct: "0",
+          // El servicio arranca con su tarifa de referencia como precio editable.
+          unitPrice: isService(p) ? String(p.sale_price_usd ?? "") : "",
+        },
+      ];
     });
   };
 
@@ -99,6 +116,11 @@ export default function RegisterSale() {
 
   const lineError = (l: Line): string | null => {
     if (!Number.isInteger(l.quantity) || l.quantity < 1) return "Cantidad inválida";
+    if (isService(l.product)) {
+      const price = Number(l.unitPrice);
+      if (Number.isNaN(price) || price <= 0) return "Precio inválido";
+      return null;
+    }
     if (l.quantity > l.product.stock) return `Solo hay ${l.product.stock} en stock`;
     const d = Number(l.discountPct);
     if (Number.isNaN(d) || d < 0 || d > 100) return "Descuento inválido (0–100%)";
@@ -125,11 +147,20 @@ export default function RegisterSale() {
       sale_type: saleType,
       status,
       notes: notes.trim(),
-      items: lines.map((l) => ({
-        product: l.product.id,
-        quantity: l.quantity,
-        discount_pct: Number(l.discountPct) || 0,
-      })),
+      items: lines.map((l) =>
+        isService(l.product)
+          ? {
+              // Servicio: precio flexible escrito a mano (no hay % de descuento).
+              product: l.product.id,
+              quantity: l.quantity,
+              unit_sale_price_usd: Number(l.unitPrice) || 0,
+            }
+          : {
+              product: l.product.id,
+              quantity: l.quantity,
+              discount_pct: Number(l.discountPct) || 0,
+            },
+      ),
     };
     try {
       const sale = await salesService.create(payload);
@@ -219,7 +250,7 @@ export default function RegisterSale() {
                 <Table>
                   <TableHeader className="border-b border-gray-100 dark:border-gray-800">
                     <TableRow>
-                      {["Producto", "Cantidad", "Precio lista", "Desc. %", "Precio neto", "Subtotal", ""].map((h) => (
+                      {["Producto", "Cantidad", "Precio lista", "Desc. % / Precio", "Precio neto", "Subtotal", ""].map((h) => (
                         <TableCell
                           key={h}
                           isHeader
@@ -240,7 +271,8 @@ export default function RegisterSale() {
                               {l.product.name}
                             </span>
                             <span className="block text-xs text-gray-500 dark:text-gray-400">
-                              {l.product.sku ?? "—"} · Stock: {l.product.stock}
+                              {l.product.sku ?? "—"} ·{" "}
+                              {isService(l.product) ? "Servicio" : `Stock: ${l.product.stock}`}
                             </span>
                             {err && <span className="block text-xs text-error-500">{err}</span>}
                           </TableCell>
@@ -248,7 +280,7 @@ export default function RegisterSale() {
                             <input
                               type="number"
                               min={1}
-                              max={l.product.stock}
+                              max={isService(l.product) ? undefined : l.product.stock}
                               value={l.quantity}
                               onChange={(e) =>
                                 updateLine(l.product.id, {
@@ -259,20 +291,35 @@ export default function RegisterSale() {
                             />
                           </TableCell>
                           <TableCell className="px-3 py-3 text-sm text-gray-500 dark:text-gray-400">
-                            {fmtUSD(listPrice(l))}
+                            {isService(l.product) ? "—" : fmtUSD(listPrice(l))}
                           </TableCell>
                           <TableCell className="px-3 py-3">
-                            <input
-                              type="number"
-                              min={0}
-                              max={100}
-                              step={0.5}
-                              value={l.discountPct}
-                              onChange={(e) =>
-                                updateLine(l.product.id, { discountPct: e.target.value })
-                              }
-                              className="h-10 w-20 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-800 focus:border-brand-300 focus:outline-hidden dark:border-gray-700 dark:text-white/90"
-                            />
+                            {isService(l.product) ? (
+                              // Servicio: precio flexible en USD (se negocia por venta).
+                              <input
+                                type="number"
+                                min={0}
+                                step={0.01}
+                                value={l.unitPrice}
+                                placeholder="Precio USD"
+                                onChange={(e) =>
+                                  updateLine(l.product.id, { unitPrice: e.target.value })
+                                }
+                                className="h-10 w-24 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-800 focus:border-brand-300 focus:outline-hidden dark:border-gray-700 dark:text-white/90"
+                              />
+                            ) : (
+                              <input
+                                type="number"
+                                min={0}
+                                max={100}
+                                step={0.5}
+                                value={l.discountPct}
+                                onChange={(e) =>
+                                  updateLine(l.product.id, { discountPct: e.target.value })
+                                }
+                                className="h-10 w-20 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-800 focus:border-brand-300 focus:outline-hidden dark:border-gray-700 dark:text-white/90"
+                              />
+                            )}
                           </TableCell>
                           <TableCell className="px-3 py-3 text-sm font-medium text-gray-700 dark:text-gray-300">
                             {fmtUSD(netPrice(l))}

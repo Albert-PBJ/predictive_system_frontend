@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Input from "../form/input/InputField";
 import Spinner from "../common/Spinner";
-import { productsService, type Product } from "../../services/productsService";
+import { productsService, isService, type Product } from "../../services/productsService";
 import { fmtUSD } from "../../utils/format";
 
 interface Props {
@@ -77,7 +77,9 @@ export default function ProductPicker({ onSelect, excludeIds = [], disabled = fa
           ) : (
             results.map((p) => {
               const added = excludeIds.includes(p.id);
-              const noStock = p.stock <= 0;
+              const svc = isService(p);
+              // Un servicio (Mantenimiento) no tiene stock: se puede vender siempre.
+              const noStock = !svc && p.stock <= 0;
               const blocked = added || noStock;
               return (
                 <button
@@ -107,12 +109,20 @@ export default function ProductPicker({ onSelect, excludeIds = [], disabled = fa
                       className={`block text-xs ${
                         noStock
                           ? "text-error-500"
+                          : svc
+                          ? "text-brand-500"
                           : p.low_stock
                           ? "text-warning-500"
                           : "text-gray-400"
                       }`}
                     >
-                      {added ? "Ya agregado" : noStock ? "Sin stock" : `Stock: ${p.stock}`}
+                      {added
+                        ? "Ya agregado"
+                        : svc
+                        ? "Servicio"
+                        : noStock
+                        ? "Sin stock"
+                        : `Stock: ${p.stock}`}
                     </span>
                   </span>
                 </button>

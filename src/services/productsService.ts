@@ -67,6 +67,15 @@ export interface Category {
   slug: string;
 }
 
+// Prefijo de SKU que marca un **servicio** (p. ej. "Mantenimiento"): sin inventario y
+// de precio flexible (se fija al registrar la venta). Debe coincidir con
+// `SERVICE_SKU_PREFIX` del backend (apps/core/models.py).
+export const SERVICE_SKU_PREFIX = "MSC-SERV-";
+
+/** True si el producto es un servicio (sin stock, precio flexible en la venta). */
+export const isService = (p: Pick<Product, "sku">): boolean =>
+  !!p.sku && p.sku.startsWith(SERVICE_SKU_PREFIX);
+
 export interface ProductListParams {
   search?: string;
   category?: number;
