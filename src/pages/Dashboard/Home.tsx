@@ -24,6 +24,9 @@ import RecentOrders from "../../components/ecommerce/RecentOrders";
 
 import DateRangeFilter from "../../components/dashboard/DateRangeFilter";
 import NarrativeBanner from "../../components/dashboard/NarrativeBanner";
+import GenerateReportButton from "../../components/report/GenerateReportButton";
+import { useAuth } from "../../context/AuthContext";
+import { CAN_VIEW_FORECASTS } from "../../services/types";
 import KpiGrid from "../../components/dashboard/KpiGrid";
 import HealthGauge from "../../components/dashboard/HealthGauge";
 import AlertsPanel from "../../components/dashboard/AlertsPanel";
@@ -63,6 +66,7 @@ function InventoryCard({ inv }: { inv: InventoryHealth }) {
 }
 
 export default function Home() {
+  const { user, hasRole } = useAuth();
   const [range, setRange] = useState<Partial<DateRange>>({});
   const [data, setData] = useState<ExecutiveDashboard | null>(null);
   const [loading, setLoading] = useState(true);
@@ -118,6 +122,13 @@ export default function Home() {
               <NarrativeBanner
                 sentences={data.narrative}
                 rangeLabel={`${data.range.from_label} – ${data.range.to_label}`}
+                action={
+                  <GenerateReportButton
+                    data={data}
+                    canForecast={hasRole(...CAN_VIEW_FORECASTS)}
+                    userName={user?.full_name || user?.username}
+                  />
+                }
               />
 
               {/* IVC (North Star) + KPIs */}
