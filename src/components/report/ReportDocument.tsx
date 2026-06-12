@@ -5,7 +5,7 @@
 
 import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
 import type { ExecutiveDashboard } from "../../services/statsService";
-import type { OverviewResponse, ForecastResponse } from "../../services/analyticsService";
+import type { OverviewResponse, ForecastResponse, ReportNarrative } from "../../services/analyticsService";
 import { fmtUSD, fmtCompactUSD, fmtInt, fmtPct, fmtDate } from "../../utils/format";
 import {
   buildSituation,
@@ -16,6 +16,8 @@ import {
   isSensitive,
   signedPct,
   type Severity,
+  type ReportRisk,
+  type ReportAction,
 } from "./reportContent";
 import { VBars, HBars, StackBar, LineChartPdf, GaugeBar, Legend, palette, SERIES_COLORS } from "./charts";
 
@@ -164,19 +166,34 @@ export interface ReportDocumentProps {
   data: ExecutiveDashboard;
   overview: OverviewResponse | null;
   revenueForecast: ForecastResponse | null;
+  narrative?: ReportNarrative | null;
   generatedAt: Date;
   userName?: string;
 }
 
-export default function ReportDocument({ data, overview, revenueForecast, generatedAt, userName }: ReportDocumentProps) {
+export default function ReportDocument({ data, overview, revenueForecast, narrative, generatedAt, userName }: ReportDocumentProps) {
   const sensitive = isSensitive(data);
   const kpis = buildKpis(data);
-  const situation = buildSituation(data);
-  const risks = buildRisks(data);
-  const actions = buildActions(data, overview);
-  const estimations = buildEstimations(data, overview);
   const inv = data.inventory_health;
   const rangeLabel = `${data.range.from_label} – ${data.range.to_label}`;
+
+  // El TEXTO de análisis lo redacta el LLM (`narrative`). Cuando no está disponible
+  // (LLM apagado o falla), se cae a la síntesis determinista de `reportContent.ts`,
+  // de modo que el diseño y el reporte funcionan igual sin LLM.
+  const useLlm = Boolean(narrative?.available);
+  const situation = (useLlm && narrative?.situation) || buildSituation(data);
+  const highlights = useLlm && narrative?.highlights?.length ? narrative.highlights : data.narrative.slice(0, 5);
+  const risks: ReportRisk[] = useLlm && narrative?.risks?.length ? narrative.risks : buildRisks(data);
+  const detEstimations = buildEstimations(data, overview);
+  const estimationItems = detEstimations.items;
+  const estimationsIntro = (useLlm && narrative?.estimations_intro) || detEstimations.intro;
+  const actions: ReportAction[] = useLlm && narrative?.actions?.length ? narrative.actions : buildActions(data, overview);
+  const closing =
+    (useLlm && narrative?.closing) ||
+    "El segmento institucional sostiene el negocio mientras el detal exige atención frente a la competencia y al " +
+      "tipo de cambio. Atender el inventario detenido, reabastecer lo crítico y reactivar a los clientes en riesgo " +
+      "son las palancas más rápidas. Este reporte es una herramienta de apoyo: las cifras y proyecciones deben " +
+      "leerse junto con el conocimiento del mercado y del entorno del país.";
 
   // --- datos de gráficos ---
   const monthLabels = data.monthly.map((m) => m.label);
@@ -227,7 +244,7 @@ export default function ReportDocument({ data, overview, revenueForecast, genera
           <Text style={styles.secTitle}>Situación actual</Text>
           <Text style={styles.secSub}>Dónde está el negocio hoy, en términos simples</Text>
           <Text style={styles.paragraph}>{situation}</Text>
-          {data.narrative.slice(0, 5).map((s, i) => (
+          {highlights.map((s, i) => (
             <View key={i} style={styles.bulletRow}>
               <View style={styles.bulletDot} />
               <Text style={styles.bulletText}>{s}</Text>
@@ -408,7 +425,7 @@ export default function ReportDocument({ data, overview, revenueForecast, genera
           <PageHeader title="Estimaciones — lo que viene" />
           <Text style={styles.secTitle}>¿Qué se espera en los próximos meses?</Text>
           <Text style={styles.secSub}>Proyecciones de los modelos predictivos (apoyo a la decisión, no certezas)</Text>
-          <Text style={styles.paragraph}>{estimations.intro}</Text>
+          <Text style={styles.paragraph}>{estimationsIntro}</Text>
 
           {fc ? (
             <View style={[styles.chartCol, { width: "100%" }]}>
@@ -417,7 +434,7 @@ export default function ReportDocument({ data, overview, revenueForecast, genera
                 labels={fc.labels}
                 series={[
                   { name: "Histórico", color: palette.brand, data: fc.history },
-                  { name: "Pronóstico", color: palette.violet, data: fc.forecast, dashed: true },
+                  { name: "Pronóstico", color: palette.orange, data: fc.forecast, dashed: true },
                 ]}
                 width={500}
                 height={150}
@@ -426,7 +443,7 @@ export default function ReportDocument({ data, overview, revenueForecast, genera
               <Legend
                 items={[
                   { label: "Histórico (real)", color: palette.brand },
-                  { label: "Pronóstico (estimado)", color: palette.violet },
+                  { label: "Pronóstico (estimado)", color: palette.orange },
                 ]}
               />
               <Text style={styles.chartCaption}>
@@ -437,7 +454,7 @@ export default function ReportDocument({ data, overview, revenueForecast, genera
           ) : null}
 
           <View style={[styles.chartRow, { flexWrap: "wrap", marginTop: 4 }]}>
-            {estimations.items.map((it, i) => (
+            {estimationItems.map((it, i) => (
               <View key={i} style={styles.estItem}>
                 <Text style={styles.estLabel}>{it.label}</Text>
                 <Text style={styles.estValue}>{it.value}</Text>
@@ -538,12 +555,7 @@ export default function ReportDocument({ data, overview, revenueForecast, genera
 
         <View style={[styles.block, { marginTop: 14, borderTopWidth: 1, borderTopColor: palette.grid, paddingTop: 8 }]}>
           <Text style={styles.chartTitle}>En resumen</Text>
-          <Text style={styles.paragraph}>
-            El segmento institucional sostiene el negocio mientras el detal exige atención frente a la competencia y al
-            tipo de cambio. Atender el inventario detenido, reabastecer lo crítico y reactivar a los clientes en riesgo
-            son las palancas más rápidas. Este reporte es una herramienta de apoyo: las cifras y proyecciones deben
-            leerse junto con el conocimiento del mercado y del entorno del país.
-          </Text>
+          <Text style={styles.paragraph}>{closing}</Text>
         </View>
 
         <Footer />

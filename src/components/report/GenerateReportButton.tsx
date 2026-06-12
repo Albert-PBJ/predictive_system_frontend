@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { analyticsService } from "../../services/analyticsService";
-import type { OverviewResponse, ForecastResponse } from "../../services/analyticsService";
+import type { OverviewResponse, ForecastResponse, ReportNarrative } from "../../services/analyticsService";
 import type { ExecutiveDashboard } from "../../services/statsService";
 import Spinner from "../common/Spinner";
 
 /**
  * Botón "Generar reporte" del panel de Inicio. Construye un PDF ejecutivo (máx. 5
  * páginas) con la situación actual, riesgos, estimaciones y acciones, a partir de los
- * datos del rango ya cargados (`data`). Si el usuario es Gerente/Admin (`canForecast`),
- * además trae los pronósticos del módulo predictivo para la sección de estimaciones.
- * Todo se genera en el navegador (no toca el backend salvo por los pronósticos).
+ * datos del rango ya cargados (`data`). El TEXTO de análisis lo redacta el LLM
+ * (endpoint `/analytics/report-narrative`); si no está configurado o falla, el
+ * documento cae a la síntesis determinista. Si el usuario es Gerente/Admin
+ * (`canForecast`), además trae los pronósticos del módulo predictivo para la sección
+ * de estimaciones. El PDF se arma en el navegador.
  */
 export default function GenerateReportButton({
   data,
@@ -31,8 +33,17 @@ export default function GenerateReportButton({
       let overview: OverviewResponse | null = null;
       let revenueForecast: ForecastResponse | null = null;
 
-      // Las proyecciones son de gerencia (IsManager en el backend). Cada una se trae
-      // por separado: si una falla, el reporte se genera igual sin esa parte.
+      const range = { from: data.range.from, to: data.range.to };
+
+      // El texto de análisis lo redacta el LLM en el backend (mismo rango que el panel).
+      // Se lanza en paralelo con las proyecciones; si falla, el documento cae a la
+      // síntesis determinista (por eso .catch → null, no rompe la generación).
+      const narrativePromise: Promise<ReportNarrative | null> = analyticsService
+        .reportNarrative(range)
+        .catch(() => null);
+
+      // Las proyecciones son de gerencia (IsManager). Cada una se trae por separado:
+      // si una falla, el reporte se genera igual sin esa parte.
       if (canForecast) {
         const [ov, rf] = await Promise.allSettled([
           analyticsService.overview(),
@@ -42,12 +53,15 @@ export default function GenerateReportButton({
         if (rf.status === "fulfilled") revenueForecast = rf.value;
       }
 
+      const narrative = await narrativePromise;
+
       // Carga diferida de la librería de PDF (chunk aparte): solo al generar.
       const { buildReportBlob } = await import("./generateReport");
       const blob = await buildReportBlob({
         data,
         overview,
         revenueForecast,
+        narrative,
         generatedAt: new Date(),
         userName,
       });

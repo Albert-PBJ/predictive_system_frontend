@@ -8,12 +8,16 @@ export const palette = {
   brand: "#465fff",
   green: "#12b76a",
   amber: "#f79009",
+  orange: "#fb6514", // naranja del tema (color de pronóstico en los gráficos en pantalla)
   red: "#f04438",
   sky: "#36bffa",
   violet: "#7a5af8",
   ink: "#1d2939",
   body: "#475467",
-  muted: "#98a2b3",
+  // Texto secundario (subtítulos explicativos, etiquetas de tarjetas/ejes, encabezados
+  // de tabla). Antes era un gris claro (#98a2b3) poco legible; se oscurece a gris-500
+  // para que se lea con claridad en el PDF, manteniendo la jerarquía bajo `body`.
+  muted: "#667085",
   grid: "#e4e7ec",
   track: "#f2f4f7",
 };

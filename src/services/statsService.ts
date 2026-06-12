@@ -336,11 +336,15 @@ export interface SellerRankRow {
 
 export interface SalesStats {
   range: StatsRange;
+  // "monthly": un punto por mes; "daily": un punto por día (rango de un solo mes,
+  // p. ej. el preset "1 mes") para que los gráficos no queden con un único punto.
+  granularity: "monthly" | "daily";
   by_type: SalesByType[];
   monthly: MonthlySalesPoint[];
   monthly_by_type: { period: string; label: string; retail: number; institutional: number }[];
   revenue_by_category: { category: string; revenue: number }[];
   top_sellers: SellerRankRow[];
+  recent: RecentSale[];
   totals: {
     revenue: number;
     profit: number;

@@ -9,6 +9,7 @@ import DonutChart from "../../components/stats/DonutChart";
 import BarChart from "../../components/stats/BarChart";
 import LineChart from "../../components/stats/LineChart";
 import RankTable, { type RankColumn } from "../../components/stats/RankTable";
+import RecentOrders from "../../components/ecommerce/RecentOrders";
 import DateRangeFilter from "../../components/dashboard/DateRangeFilter";
 import { statsService, type SellerRankRow } from "../../services/statsService";
 import { useRangedData } from "../../hooks/useRangedData";
@@ -25,6 +26,7 @@ const sellerCols: RankColumn<SellerRankRow>[] = [
 
 export default function SalesStats() {
   const { range, setRange, data, loading, error } = useRangedData((r) => statsService.sales(r));
+  const daily = data?.granularity === "daily";
 
   return (
     <>
@@ -62,7 +64,10 @@ export default function SalesStats() {
           </div>
 
           {/* Tendencia */}
-          <ChartCard title="Ingresos y utilidad por mes" subtitle="Evolución mensual dentro del rango (ventas completadas)">
+          <ChartCard
+            title={daily ? "Ingresos y utilidad por día" : "Ingresos y utilidad por mes"}
+            subtitle={daily ? "Evolución diaria dentro del mes (ventas completadas)" : "Evolución mensual dentro del rango (ventas completadas)"}
+          >
             <LineChart
               categories={data.monthly.map((m) => m.label)}
               series={[
@@ -84,7 +89,7 @@ export default function SalesStats() {
                 totalLabel="Ingresos"
               />
             </ChartCard>
-            <ChartCard className="lg:col-span-2" title="Composición mensual por canal" subtitle="Ingresos detal vs. institucional (rango)">
+            <ChartCard className="lg:col-span-2" title={daily ? "Composición diaria por canal" : "Composición mensual por canal"} subtitle="Ingresos detal vs. institucional (rango)">
               <BarChart
                 categories={data.monthly_by_type.map((m) => m.label)}
                 series={[
@@ -113,6 +118,9 @@ export default function SalesStats() {
               <RankTable ranked columns={sellerCols} rows={data.top_sellers} />
             </ChartCard>
           </div>
+
+          {/* Detalle: ventas del periodo, de la más reciente a la más antigua. */}
+          <RecentOrders sales={data.recent} />
           </div>
         </div>
       )}

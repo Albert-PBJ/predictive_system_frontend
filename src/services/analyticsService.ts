@@ -177,9 +177,45 @@ export interface OverviewResponse {
   }[];
 }
 
+// --- Narrativa del reporte ejecutivo redactada por el LLM ---
+// El backend recalcula el panel para el rango y le pide al modelo la prosa del
+// reporte. Si el LLM no está configurado o falla, `available` viene en false y el
+// frontend cae a la síntesis determinista (components/report/reportContent.ts).
+export interface ReportNarrativeRisk {
+  severity: "high" | "medium" | "low";
+  title: string;
+  text: string;
+}
+
+export interface ReportNarrativeAction {
+  title: string;
+  text: string;
+}
+
+export interface ReportNarrative {
+  available: boolean;
+  reason?: string;
+  generated_by?: string;
+  situation?: string;
+  highlights?: string[];
+  risks?: ReportNarrativeRisk[];
+  estimations_intro?: string;
+  actions?: ReportNarrativeAction[];
+  closing?: string;
+}
+
 export const analyticsService = {
   async overview(): Promise<OverviewResponse> {
     const { data } = await api.get<OverviewResponse>("/analytics/overview");
+    return data;
+  },
+  // Narrativa del reporte para el rango (Desde/Hasta). Accesible a todo el personal
+  // (IsViewer); las cifras sensibles solo se usan para Gerente/Admin en el backend.
+  async reportNarrative(range?: { from?: string; to?: string }): Promise<ReportNarrative> {
+    const params: Record<string, string> = {};
+    if (range?.from) params.from = range.from;
+    if (range?.to) params.to = range.to;
+    const { data } = await api.get<ReportNarrative>("/analytics/report-narrative", { params });
     return data;
   },
   async forecastableProducts(): Promise<ForecastableProduct[]> {
