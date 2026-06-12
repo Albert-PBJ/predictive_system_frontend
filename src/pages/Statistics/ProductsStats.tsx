@@ -8,12 +8,13 @@ import ChartCard from "../../components/stats/ChartCard";
 import DonutChart from "../../components/stats/DonutChart";
 import BarChart from "../../components/stats/BarChart";
 import RankTable, { type RankColumn } from "../../components/stats/RankTable";
+import DateRangeFilter from "../../components/dashboard/DateRangeFilter";
 import {
   statsService,
   type ProductRankRow,
   type SlowMover,
 } from "../../services/statsService";
-import { useAsyncData } from "../../hooks/useAsyncData";
+import { useRangedData } from "../../hooks/useRangedData";
 import { fmtUSD, fmtInt } from "../../utils/format";
 
 const STOCK_COLORS = ["#12b76a", "#f79009", "#f04438"]; // ok / bajo / sin stock
@@ -40,7 +41,7 @@ const slowCols: RankColumn<SlowMover>[] = [
 ];
 
 export default function ProductsStats() {
-  const { data, loading, error } = useAsyncData(() => statsService.products());
+  const { range, setRange, data, loading, error } = useRangedData((r) => statsService.products(r));
 
   return (
     <>
@@ -48,17 +49,27 @@ export default function ProductsStats() {
       <PageBreadcrumb pageTitle="Productos" />
       <p className="mb-5 max-w-3xl text-sm text-gray-500 dark:text-gray-400">
         Composición del catálogo, estado del inventario y qué productos mueven el negocio — para
-        decidir qué reponer, qué impulsar y qué productos están estancados.
+        decidir qué reponer, qué impulsar y qué productos están estancados. Las ventas por producto
+        se recalculan para el rango elegido; el catálogo e inventario son la foto actual.
       </p>
 
       {error && <Alert variant="error" title="Error" message={error} />}
 
-      {loading ? (
+      {!data ? (
         <div className="flex h-72 items-center justify-center gap-3 text-sm text-gray-500 dark:text-gray-400">
           <Spinner /> Cargando…
         </div>
-      ) : !data ? null : (
+      ) : (
         <div className="space-y-6">
+          <DateRangeFilter
+            from={range.from ?? data.range.from}
+            to={range.to ?? data.range.to}
+            min={data.range.data_from}
+            max={data.range.data_to}
+            onChange={setRange}
+            loading={loading}
+          />
+          <div className={loading ? "pointer-events-none space-y-6 opacity-60 transition" : "space-y-6 transition"}>
           {/* KPIs */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard label="Productos activos" value={fmtInt(data.totals.active)} icon={<ListIcon className="size-6 text-gray-800 dark:text-white/90" />} hint={`${fmtInt(data.totals.inactive)} inactivos`} />
@@ -112,17 +123,18 @@ export default function ProductsStats() {
 
           {/* Rankings */}
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-            <ChartCard title="Más vendidos" subtitle="Por unidades vendidas">
+            <ChartCard title="Más vendidos" subtitle="Por unidades vendidas (rango)">
               <RankTable ranked columns={topUnitsCols} rows={data.top_by_units} />
             </ChartCard>
-            <ChartCard title="Mayores ingresos" subtitle="Por facturación generada">
+            <ChartCard title="Mayores ingresos" subtitle="Por facturación generada (rango)">
               <RankTable ranked columns={topRevenueCols} rows={data.top_by_revenue} />
             </ChartCard>
           </div>
 
-          <ChartCard title="Productos sin rotación" subtitle="Activos sin ventas registradas (mayor stock primero)">
-            <RankTable columns={slowCols} rows={data.slow_movers} empty="Todos los productos activos tienen ventas." />
+          <ChartCard title="Productos sin rotación" subtitle="Activos sin ventas en el rango (mayor stock primero)">
+            <RankTable columns={slowCols} rows={data.slow_movers} empty="Todos los productos activos tienen ventas en el rango." />
           </ChartCard>
+          </div>
         </div>
       )}
     </>

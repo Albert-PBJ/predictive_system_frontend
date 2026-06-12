@@ -9,8 +9,9 @@ import ChartCard from "../../components/stats/ChartCard";
 import DonutChart from "../../components/stats/DonutChart";
 import CustomerLocationCard from "../../components/stats/CustomerLocationCard";
 import RankTable, { type RankColumn } from "../../components/stats/RankTable";
+import DateRangeFilter from "../../components/dashboard/DateRangeFilter";
 import { statsService, type CustomerRankRow } from "../../services/statsService";
-import { useAsyncData } from "../../hooks/useAsyncData";
+import { useRangedData } from "../../hooks/useRangedData";
 import { fmtUSD, fmtInt, fmtDate } from "../../utils/format";
 
 const baseCols: RankColumn<CustomerRankRow>[] = [
@@ -29,7 +30,7 @@ const riskCols: RankColumn<CustomerRankRow>[] = [
 ];
 
 export default function CustomersStats() {
-  const { data, loading, error } = useAsyncData(() => statsService.customers());
+  const { range, setRange, data, loading, error } = useRangedData((r) => statsService.customers(r));
 
   return (
     <>
@@ -37,17 +38,28 @@ export default function CustomersStats() {
       <PageBreadcrumb pageTitle="Clientes" />
       <p className="mb-5 max-w-3xl text-sm text-gray-500 dark:text-gray-400">
         Composición de la cartera de clientes, su ubicación y los de mayor (y menor) actividad —
-        para entender de dónde vienen los ingresos y qué clientes se están enfriando.
+        para entender de dónde vienen los ingresos y qué clientes se están enfriando. Los
+        rankings de compra se recalculan para el rango elegido; la composición de la cartera es
+        la foto actual.
       </p>
 
       {error && <Alert variant="error" title="Error" message={error} />}
 
-      {loading ? (
+      {!data ? (
         <div className="flex h-72 items-center justify-center gap-3 text-sm text-gray-500 dark:text-gray-400">
           <Spinner /> Cargando…
         </div>
-      ) : !data ? null : (
+      ) : (
         <div className="space-y-6">
+          <DateRangeFilter
+            from={range.from ?? data.range.from}
+            to={range.to ?? data.range.to}
+            min={data.range.data_from}
+            max={data.range.data_to}
+            onChange={setRange}
+            loading={loading}
+          />
+          <div className={loading ? "pointer-events-none space-y-6 opacity-60 transition" : "space-y-6 transition"}>
           {/* KPIs */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard label="Clientes totales" value={fmtInt(data.totals.total)} icon={<GroupIcon className="size-6 text-gray-800 dark:text-white/90" />} />
@@ -90,7 +102,7 @@ export default function CustomersStats() {
 
           <ChartCard
             title="Clientes en riesgo"
-            subtitle="Activos sin comprar en los últimos 6 meses"
+            subtitle="Activos sin comprar en los 6 meses previos al cierre del rango"
             action={<Badge color="warning" variant="light">{data.at_risk.length} en riesgo</Badge>}
           >
             <RankTable
@@ -99,6 +111,7 @@ export default function CustomersStats() {
               empty="Ningún cliente activo lleva más de 6 meses sin comprar."
             />
           </ChartCard>
+          </div>
         </div>
       )}
     </>

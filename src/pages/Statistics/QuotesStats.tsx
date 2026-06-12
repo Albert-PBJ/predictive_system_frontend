@@ -10,8 +10,9 @@ import DonutChart from "../../components/stats/DonutChart";
 import BarChart from "../../components/stats/BarChart";
 import LineChart from "../../components/stats/LineChart";
 import RankTable, { type RankColumn } from "../../components/stats/RankTable";
+import DateRangeFilter from "../../components/dashboard/DateRangeFilter";
 import { statsService, type QuoteRankRow } from "../../services/statsService";
-import { useAsyncData } from "../../hooks/useAsyncData";
+import { useRangedData } from "../../hooks/useRangedData";
 import { fmtUSD, fmtInt, fmtPct, fmtDate } from "../../utils/format";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -34,7 +35,7 @@ const quoteCols: RankColumn<QuoteRankRow>[] = [
 ];
 
 export default function QuotesStats() {
-  const { data, loading, error } = useAsyncData(() => statsService.quotes());
+  const { range, setRange, data, loading, error } = useRangedData((r) => statsService.quotes(r));
 
   return (
     <>
@@ -42,17 +43,27 @@ export default function QuotesStats() {
       <PageBreadcrumb pageTitle="Presupuestos" />
       <p className="mb-5 max-w-3xl text-sm text-gray-500 dark:text-gray-400">
         Cómo se cierran los presupuestos: la tasa de conversión, qué hay en el pipeline abierto y la
-        evolución de emitidos vs. convertidos — para anticipar ingresos y mejorar el cierre.
+        evolución de emitidos vs. convertidos — para anticipar ingresos y mejorar el cierre. Se mide
+        sobre los presupuestos emitidos dentro del rango elegido.
       </p>
 
       {error && <Alert variant="error" title="Error" message={error} />}
 
-      {loading ? (
+      {!data ? (
         <div className="flex h-72 items-center justify-center gap-3 text-sm text-gray-500 dark:text-gray-400">
           <Spinner /> Cargando…
         </div>
-      ) : !data ? null : (
+      ) : (
         <div className="space-y-6">
+          <DateRangeFilter
+            from={range.from ?? data.range.from}
+            to={range.to ?? data.range.to}
+            min={data.range.data_from}
+            max={data.range.data_to}
+            onChange={setRange}
+            loading={loading}
+          />
+          <div className={loading ? "pointer-events-none space-y-6 opacity-60 transition" : "space-y-6 transition"}>
           {/* KPIs */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard label="Presupuestos totales" value={fmtInt(data.totals.total)} icon={<DocsIcon className="size-6 text-gray-800 dark:text-white/90" />} hint={`${fmtInt(data.totals.converted)} convertidos`} />
@@ -72,7 +83,7 @@ export default function QuotesStats() {
                 totalLabel="Presupuestos"
               />
             </ChartCard>
-            <ChartCard className="lg:col-span-2" title="Emitidos vs. convertidos" subtitle="Por mes (últimos 12 meses)">
+            <ChartCard className="lg:col-span-2" title="Emitidos vs. convertidos" subtitle="Por mes (rango seleccionado)">
               <LineChart
                 categories={data.monthly.map((m) => m.label)}
                 series={[
@@ -99,6 +110,7 @@ export default function QuotesStats() {
             <ChartCard className="lg:col-span-2" title="Presupuestos de mayor valor" subtitle="Top por monto total">
               <RankTable ranked columns={quoteCols} rows={data.top_quotes} />
             </ChartCard>
+          </div>
           </div>
         </div>
       )}

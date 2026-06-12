@@ -9,8 +9,9 @@ import DonutChart from "../../components/stats/DonutChart";
 import BarChart from "../../components/stats/BarChart";
 import LineChart from "../../components/stats/LineChart";
 import RankTable, { type RankColumn } from "../../components/stats/RankTable";
+import DateRangeFilter from "../../components/dashboard/DateRangeFilter";
 import { statsService, type SellerRankRow } from "../../services/statsService";
-import { useAsyncData } from "../../hooks/useAsyncData";
+import { useRangedData } from "../../hooks/useRangedData";
 import { fmtUSD, fmtInt, fmtPct } from "../../utils/format";
 
 const TYPE_COLORS = ["#465fff", "#12b76a"];
@@ -23,7 +24,7 @@ const sellerCols: RankColumn<SellerRankRow>[] = [
 ];
 
 export default function SalesStats() {
-  const { data, loading, error } = useAsyncData(() => statsService.sales());
+  const { range, setRange, data, loading, error } = useRangedData((r) => statsService.sales(r));
 
   return (
     <>
@@ -32,16 +33,26 @@ export default function SalesStats() {
       <p className="mb-5 max-w-3xl text-sm text-gray-500 dark:text-gray-400">
         Cómo evolucionan los ingresos y la utilidad, el peso del canal detal frente al institucional,
         y qué categorías y vendedores aportan más — la foto para decidir dónde enfocar el esfuerzo.
+        Todo se recalcula para el rango elegido.
       </p>
 
       {error && <Alert variant="error" title="Error" message={error} />}
 
-      {loading ? (
+      {!data ? (
         <div className="flex h-72 items-center justify-center gap-3 text-sm text-gray-500 dark:text-gray-400">
           <Spinner /> Cargando…
         </div>
-      ) : !data ? null : (
+      ) : (
         <div className="space-y-6">
+          <DateRangeFilter
+            from={range.from ?? data.range.from}
+            to={range.to ?? data.range.to}
+            min={data.range.data_from}
+            max={data.range.data_to}
+            onChange={setRange}
+            loading={loading}
+          />
+          <div className={loading ? "pointer-events-none space-y-6 opacity-60 transition" : "space-y-6 transition"}>
           {/* KPIs */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard label="Ingresos totales" value={fmtUSD(data.totals.revenue)} icon={<DollarLineIcon className="size-6 text-gray-800 dark:text-white/90" />} hint={`${fmtInt(data.totals.count)} ventas`} />
@@ -51,7 +62,7 @@ export default function SalesStats() {
           </div>
 
           {/* Tendencia */}
-          <ChartCard title="Ingresos y utilidad por mes" subtitle="Últimos 18 meses (ventas completadas)">
+          <ChartCard title="Ingresos y utilidad por mes" subtitle="Evolución mensual dentro del rango (ventas completadas)">
             <LineChart
               categories={data.monthly.map((m) => m.label)}
               series={[
@@ -73,7 +84,7 @@ export default function SalesStats() {
                 totalLabel="Ingresos"
               />
             </ChartCard>
-            <ChartCard className="lg:col-span-2" title="Composición mensual por canal" subtitle="Ingresos detal vs. institucional (últimos 12 meses)">
+            <ChartCard className="lg:col-span-2" title="Composición mensual por canal" subtitle="Ingresos detal vs. institucional (rango)">
               <BarChart
                 categories={data.monthly_by_type.map((m) => m.label)}
                 series={[
@@ -101,6 +112,7 @@ export default function SalesStats() {
             <ChartCard title="Mejores vendedores" subtitle="Por ingresos generados">
               <RankTable ranked columns={sellerCols} rows={data.top_sellers} />
             </ChartCard>
+          </div>
           </div>
         </div>
       )}

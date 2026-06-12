@@ -254,6 +254,18 @@ export interface ExecutiveDashboard {
   recent_sales: RecentSale[];
 }
 
+// Bloque `range` común a los paneles de detalle con "máquina del tiempo": el rango
+// elegido (con etiquetas) + los límites de datos disponibles para el selector de fechas.
+export interface StatsRange {
+  from: string;
+  to: string;
+  from_label: string;
+  to_label: string;
+  months: number;
+  data_from: string;
+  data_to: string;
+}
+
 // --- Clientes ---
 export interface CustomerRankRow {
   customer_id: number;
@@ -266,6 +278,7 @@ export interface CustomerRankRow {
 }
 
 export interface CustomerStats {
+  range: StatsRange;
   by_type: { type: string; label: string; count: number }[];
   by_state: StateCount[];
   active_split: { key: string; label: string; count: number }[];
@@ -294,6 +307,7 @@ export interface SlowMover {
 }
 
 export interface ProductStats {
+  range: StatsRange;
   by_category: { category: string; count: number }[];
   by_material: { material: string; label: string; count: number }[];
   active_split: { key: string; label: string; count: number }[];
@@ -321,6 +335,7 @@ export interface SellerRankRow {
 }
 
 export interface SalesStats {
+  range: StatsRange;
   by_type: SalesByType[];
   monthly: MonthlySalesPoint[];
   monthly_by_type: { period: string; label: string; retail: number; institutional: number }[];
@@ -348,6 +363,7 @@ export interface QuoteRankRow {
 }
 
 export interface QuoteStats {
+  range: StatsRange;
   by_status: { status: string; label: string; count: number; value: number }[];
   monthly: { period: string; label: string; issued: number; converted: number }[];
   extras: { key: string; label: string; count: number }[];
@@ -367,26 +383,33 @@ export const statsService = {
   // Panel de Inicio ejecutivo. `range` (Desde/Hasta) recalcula todo el panel; si se
   // omite, el backend usa los últimos 12 meses.
   async dashboard(range?: Partial<DateRange>): Promise<ExecutiveDashboard> {
-    const params: Record<string, string> = {};
-    if (range?.from) params.from = range.from;
-    if (range?.to) params.to = range.to;
-    const { data } = await api.get<ExecutiveDashboard>("/analytics/stats/dashboard", { params });
+    const { data } = await api.get<ExecutiveDashboard>("/analytics/stats/dashboard", { params: rangeParams(range) });
     return data;
   },
-  async customers(): Promise<CustomerStats> {
-    const { data } = await api.get<CustomerStats>("/analytics/stats/customers");
+  // Los paneles de detalle comparten la misma "máquina del tiempo": `range`
+  // (Desde/Hasta) recalcula los agregados de venta/presupuesto; si se omite, el
+  // backend usa los últimos 2 meses con datos.
+  async customers(range?: Partial<DateRange>): Promise<CustomerStats> {
+    const { data } = await api.get<CustomerStats>("/analytics/stats/customers", { params: rangeParams(range) });
     return data;
   },
-  async products(): Promise<ProductStats> {
-    const { data } = await api.get<ProductStats>("/analytics/stats/products");
+  async products(range?: Partial<DateRange>): Promise<ProductStats> {
+    const { data } = await api.get<ProductStats>("/analytics/stats/products", { params: rangeParams(range) });
     return data;
   },
-  async sales(): Promise<SalesStats> {
-    const { data } = await api.get<SalesStats>("/analytics/stats/sales");
+  async sales(range?: Partial<DateRange>): Promise<SalesStats> {
+    const { data } = await api.get<SalesStats>("/analytics/stats/sales", { params: rangeParams(range) });
     return data;
   },
-  async quotes(): Promise<QuoteStats> {
-    const { data } = await api.get<QuoteStats>("/analytics/stats/quotes");
+  async quotes(range?: Partial<DateRange>): Promise<QuoteStats> {
+    const { data } = await api.get<QuoteStats>("/analytics/stats/quotes", { params: rangeParams(range) });
     return data;
   },
 };
+
+function rangeParams(range?: Partial<DateRange>): Record<string, string> {
+  const params: Record<string, string> = {};
+  if (range?.from) params.from = range.from;
+  if (range?.to) params.to = range.to;
+  return params;
+}
