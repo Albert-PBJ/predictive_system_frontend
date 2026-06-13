@@ -2,6 +2,7 @@ import { useState } from "react";
 import { analyticsService } from "../../services/analyticsService";
 import type { OverviewResponse, ForecastResponse, ReportNarrative } from "../../services/analyticsService";
 import type { ExecutiveDashboard } from "../../services/statsService";
+import { settingsService, type CompanyInfo } from "../../services/settingsService";
 import Spinner from "../common/Spinner";
 
 /**
@@ -42,6 +43,12 @@ export default function GenerateReportButton({
         .reportNarrative(range)
         .catch(() => null);
 
+      // Branding desde la configuración (best-effort): si falla, el documento usa
+      // sus valores por defecto.
+      const companyPromise: Promise<CompanyInfo | undefined> = settingsService
+        .getCompany()
+        .catch(() => undefined);
+
       // Las proyecciones son de gerencia (IsManager). Cada una se trae por separado:
       // si una falla, el reporte se genera igual sin esa parte.
       if (canForecast) {
@@ -54,6 +61,7 @@ export default function GenerateReportButton({
       }
 
       const narrative = await narrativePromise;
+      const company = await companyPromise;
 
       // Carga diferida de la librería de PDF (chunk aparte): solo al generar.
       const { buildReportBlob } = await import("./generateReport");
@@ -64,6 +72,7 @@ export default function GenerateReportButton({
         narrative,
         generatedAt: new Date(),
         userName,
+        company,
       });
 
       const url = URL.createObjectURL(blob);

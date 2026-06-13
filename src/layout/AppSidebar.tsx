@@ -12,6 +12,7 @@ import {
   HorizontaLDots,
   ListIcon,
   PieChartIcon,
+  PlugInIcon,
   TableIcon,
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
@@ -58,6 +59,8 @@ const navItems: NavItem[] = [
       // El encargado de inventario ve las ventas pero no las registra.
       { name: "Registrar venta", path: "/ventas/registrar", roles: CAN_REGISTER_SALES },
       { name: "Historial de ventas", path: "/ventas/historial" },
+      { name: "Presupuestos", path: "/ventas/presupuestos", roles: CAN_REGISTER_SALES },
+      { name: "Clientes", path: "/ventas/clientes", roles: CAN_REGISTER_SALES },
     ],
   },
   {
@@ -116,6 +119,12 @@ const navItems: NavItem[] = [
       { name: SCRAPER_META.mercadolibre.label, path: SCRAPER_META.mercadolibre.path },
       { name: SCRAPER_META.website.label, path: SCRAPER_META.website.path },
     ],
+  },
+  {
+    icon: <PlugInIcon />,
+    name: "Configuración",
+    roles: ["ADMIN"],
+    path: "/configuracion",
   },
 ];
 

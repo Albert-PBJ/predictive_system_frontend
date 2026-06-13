@@ -12,6 +12,9 @@ import ProtectedRoute from "./components/auth/ProtectedRoute";
 import ScraperPage from "./pages/ExternalData/ScraperPage";
 import RegisterSale from "./pages/Sales/RegisterSale";
 import SalesHistory from "./pages/Sales/SalesHistory";
+import QuotesList from "./pages/Quotes/QuotesList";
+import CreateQuote from "./pages/Quotes/CreateQuote";
+import CustomersManage from "./pages/Customers/CustomersManage";
 import StockControl from "./pages/Inventory/StockControl";
 import ProductsCatalog from "./pages/Products/ProductsCatalog";
 import PredictionsOverview from "./pages/Predictions/PredictionsOverview";
@@ -28,6 +31,7 @@ import CustomersStats from "./pages/Statistics/CustomersStats";
 import ProductsStats from "./pages/Statistics/ProductsStats";
 import SalesStats from "./pages/Statistics/SalesStats";
 import QuotesStats from "./pages/Statistics/QuotesStats";
+import SystemSettings from "./pages/Settings/SystemSettings";
 import {
   CAN_MANAGE_PRODUCTS,
   CAN_REGISTER_SALES,
@@ -73,6 +77,32 @@ export default function App() {
                   element={
                     <ProtectedRoute roles={OPERATIONAL_ROLES}>
                       <SalesHistory />
+                    </ProtectedRoute>
+                  }
+                />
+                {/* Presupuestos — listar/crear/descargar PDF (vendedor o superior) */}
+                <Route
+                  path="/ventas/presupuestos"
+                  element={
+                    <ProtectedRoute roles={CAN_REGISTER_SALES}>
+                      <QuotesList />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/ventas/presupuestos/nuevo"
+                  element={
+                    <ProtectedRoute roles={CAN_REGISTER_SALES}>
+                      <CreateQuote />
+                    </ProtectedRoute>
+                  }
+                />
+                {/* Clientes — gestión (alta, edición, activar/desactivar) */}
+                <Route
+                  path="/ventas/clientes"
+                  element={
+                    <ProtectedRoute roles={CAN_REGISTER_SALES}>
+                      <CustomersManage />
                     </ProtectedRoute>
                   }
                 />
@@ -237,6 +267,16 @@ export default function App() {
                   element={
                     <ProtectedRoute roles={["ADMIN"]}>
                       <ScraperPage source="mercadolibre" />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Configuración del sistema — solo ADMIN */}
+                <Route
+                  path="/configuracion"
+                  element={
+                    <ProtectedRoute roles={["ADMIN"]}>
+                      <SystemSettings />
                     </ProtectedRoute>
                   }
                 />

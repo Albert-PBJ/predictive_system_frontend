@@ -20,6 +20,19 @@ import {
   type ReportAction,
 } from "./reportContent";
 import { VBars, HBars, StackBar, LineChartPdf, GaugeBar, Legend, palette, SERIES_COLORS } from "./charts";
+import type { CompanyInfo } from "../../services/settingsService";
+
+// Datos de empresa por defecto (cuando no se inyecta la configuración), para que el
+// reporte nunca quede sin encabezado.
+const DEFAULT_COMPANY: CompanyInfo = {
+  name: "Inversiones Maescar C.A.",
+  rif: "",
+  address: "",
+  phone: "",
+  email: "",
+  website: "",
+  logo_url: "",
+};
 
 const styles = StyleSheet.create({
   page: { paddingTop: 34, paddingBottom: 40, paddingHorizontal: 32, fontSize: 9, color: palette.body, fontFamily: "Helvetica" },
@@ -93,19 +106,19 @@ const SEV_STYLE: Record<Severity, { border: string; bg: string; badgeBg: string;
   low: { border: palette.brand, bg: "#eff4ff", badgeBg: "#d1e0ff", badgeColor: "#3538cd", label: "BAJO" },
 };
 
-function PageHeader({ title }: { title: string }) {
+function PageHeader({ title, brand }: { title: string; brand: string }) {
   return (
     <View style={styles.pageHeader} fixed>
       <Text style={styles.pageHeaderTitle}>{title}</Text>
-      <Text style={styles.pageHeaderBrand}>Maescar · Reporte Ejecutivo</Text>
+      <Text style={styles.pageHeaderBrand}>{brand}</Text>
     </View>
   );
 }
 
-function Footer() {
+function Footer({ text }: { text: string }) {
   return (
     <View style={styles.footer} fixed>
-      <Text style={styles.footerText}>Inversiones Maescar C.A. · Documento confidencial</Text>
+      <Text style={styles.footerText}>{text}</Text>
       <Text style={styles.footerText} render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
     </View>
   );
@@ -169,9 +182,13 @@ export interface ReportDocumentProps {
   narrative?: ReportNarrative | null;
   generatedAt: Date;
   userName?: string;
+  company?: CompanyInfo;
 }
 
-export default function ReportDocument({ data, overview, revenueForecast, narrative, generatedAt, userName }: ReportDocumentProps) {
+export default function ReportDocument({ data, overview, revenueForecast, narrative, generatedAt, userName, company }: ReportDocumentProps) {
+  const co = company ?? DEFAULT_COMPANY;
+  const headerBrand = `${co.name} · Reporte Ejecutivo`;
+  const footerText = `${co.name} · Documento confidencial`;
   const sensitive = isSensitive(data);
   const kpis = buildKpis(data);
   const inv = data.inventory_health;
@@ -215,11 +232,11 @@ export default function ReportDocument({ data, overview, revenueForecast, narrat
   const fc = revenueForecast ? forecastSeries(revenueForecast) : null;
 
   return (
-    <Document title={`Reporte Ejecutivo Maescar — ${rangeLabel}`} author="Sistema Predictivo Maescar" subject="Resumen ejecutivo">
+    <Document title={`Reporte Ejecutivo ${co.name} — ${rangeLabel}`} author={`Sistema Predictivo · ${co.name}`} subject="Resumen ejecutivo">
       {/* ============ PÁGINA 1 — Situación actual ============ */}
       <Page size="A4" style={styles.page}>
         <View style={styles.cover}>
-          <Text style={styles.coverKicker}>INVERSIONES MAESCAR C.A.</Text>
+          <Text style={styles.coverKicker}>{co.name.toUpperCase()}</Text>
           <Text style={styles.coverTitle}>Reporte Ejecutivo</Text>
           <Text style={styles.coverSub}>Sistema Predictivo · Panorama del negocio y lo que viene</Text>
           <View style={styles.coverMetaRow}>
@@ -288,12 +305,12 @@ export default function ReportDocument({ data, overview, revenueForecast, narrat
           </View>
         </View>
 
-        <Footer />
+        <Footer text={footerText} />
       </Page>
 
       {/* ============ PÁGINA 2 — Desempeño ============ */}
       <Page size="A4" style={styles.page}>
-        <PageHeader title="Desempeño del periodo" />
+        <PageHeader title="Desempeño del periodo" brand={headerBrand} />
         <Text style={styles.secTitle}>¿Cómo se está moviendo el negocio?</Text>
         <Text style={styles.secSub}>Evolución de ingresos, mezcla de clientes y categorías más vendidas</Text>
 
@@ -329,12 +346,12 @@ export default function ReportDocument({ data, overview, revenueForecast, narrat
           </ChartBox>
         </View>
 
-        <Footer />
+        <Footer text={footerText} />
       </Page>
 
       {/* ============ PÁGINA 3 — Riesgos y preocupaciones ============ */}
       <Page size="A4" style={styles.page}>
-        <PageHeader title="Riesgos y preocupaciones" />
+        <PageHeader title="Riesgos y preocupaciones" brand={headerBrand} />
         <Text style={styles.secTitle}>Preocupaciones y riesgos</Text>
         <Text style={styles.secSub}>Lo que conviene vigilar, ordenado por importancia, y por qué importa</Text>
 
@@ -416,13 +433,13 @@ export default function ReportDocument({ data, overview, revenueForecast, narrat
           </Text>
         </View>
 
-        <Footer />
+        <Footer text={footerText} />
       </Page>
 
       {/* ============ PÁGINA 4 — Estimaciones (solo si hay pronósticos) ============ */}
       {overview ? (
         <Page size="A4" style={styles.page}>
-          <PageHeader title="Estimaciones — lo que viene" />
+          <PageHeader title="Estimaciones — lo que viene" brand={headerBrand} />
           <Text style={styles.secTitle}>¿Qué se espera en los próximos meses?</Text>
           <Text style={styles.secSub}>Proyecciones de los modelos predictivos (apoyo a la decisión, no certezas)</Text>
           <Text style={styles.paragraph}>{estimationsIntro}</Text>
@@ -463,13 +480,13 @@ export default function ReportDocument({ data, overview, revenueForecast, narrat
             ))}
           </View>
 
-          <Footer />
+          <Footer text={footerText} />
         </Page>
       ) : null}
 
       {/* ============ PÁGINA 5 — Acciones sugeridas + cierre ============ */}
       <Page size="A4" style={styles.page}>
-        <PageHeader title="Acciones sugeridas" />
+        <PageHeader title="Acciones sugeridas" brand={headerBrand} />
         <Text style={styles.secTitle}>Acciones sugeridas</Text>
         <Text style={styles.secSub}>Pasos concretos para atacar los riesgos y aprovechar las oportunidades</Text>
 
@@ -558,7 +575,7 @@ export default function ReportDocument({ data, overview, revenueForecast, narrat
           <Text style={styles.paragraph}>{closing}</Text>
         </View>
 
-        <Footer />
+        <Footer text={footerText} />
       </Page>
     </Document>
   );

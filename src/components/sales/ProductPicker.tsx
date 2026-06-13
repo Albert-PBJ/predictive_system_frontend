@@ -9,9 +9,12 @@ interface Props {
   // Ids ya agregados a la venta: se muestran deshabilitados para evitar duplicados.
   excludeIds?: number[];
   disabled?: boolean;
+  // Permite seleccionar productos sin stock (para presupuestos: son una oferta, no
+  // descuentan inventario). En ventas se deja en false para no vender sin existencias.
+  allowOutOfStock?: boolean;
 }
 
-export default function ProductPicker({ onSelect, excludeIds = [], disabled = false }: Props) {
+export default function ProductPicker({ onSelect, excludeIds = [], disabled = false, allowOutOfStock = false }: Props) {
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
   const [results, setResults] = useState<Product[]>([]);
@@ -80,7 +83,8 @@ export default function ProductPicker({ onSelect, excludeIds = [], disabled = fa
               const svc = isService(p);
               // Un servicio (Mantenimiento) no tiene stock: se puede vender siempre.
               const noStock = !svc && p.stock <= 0;
-              const blocked = added || noStock;
+              // En presupuestos se permite cotizar sin stock; solo se bloquea el duplicado.
+              const blocked = added || (noStock && !allowOutOfStock);
               return (
                 <button
                   key={p.id}
