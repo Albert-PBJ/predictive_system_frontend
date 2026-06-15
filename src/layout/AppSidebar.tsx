@@ -14,6 +14,7 @@ import {
   PieChartIcon,
   PlugInIcon,
   TableIcon,
+  TimeIcon,
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import { useAuth } from "../context/AuthContext";
@@ -125,6 +126,12 @@ const navItems: NavItem[] = [
     name: "Configuración",
     roles: ["ADMIN"],
     path: "/configuracion",
+  },
+  {
+    icon: <TimeIcon />,
+    name: "Auditoría",
+    roles: ["ADMIN"],
+    path: "/auditoria",
   },
 ];
 

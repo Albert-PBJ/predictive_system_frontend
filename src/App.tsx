@@ -32,6 +32,7 @@ import ProductsStats from "./pages/Statistics/ProductsStats";
 import SalesStats from "./pages/Statistics/SalesStats";
 import QuotesStats from "./pages/Statistics/QuotesStats";
 import SystemSettings from "./pages/Settings/SystemSettings";
+import SystemLogs from "./pages/Audit/SystemLogs";
 import {
   CAN_MANAGE_PRODUCTS,
   CAN_REGISTER_SALES,
@@ -277,6 +278,16 @@ export default function App() {
                   element={
                     <ProtectedRoute roles={["ADMIN"]}>
                       <SystemSettings />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Registro de actividad (auditoría) — solo ADMIN */}
+                <Route
+                  path="/auditoria"
+                  element={
+                    <ProtectedRoute roles={["ADMIN"]}>
+                      <SystemLogs />
                     </ProtectedRoute>
                   }
                 />

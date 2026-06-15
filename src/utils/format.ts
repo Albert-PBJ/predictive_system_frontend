@@ -44,6 +44,21 @@ export function fmtDate(iso: string | null | undefined): string {
     : d.toLocaleDateString("es-VE", { year: "numeric", month: "2-digit", day: "2-digit" });
 }
 
+// Fecha y hora (para la bitácora de auditoría: "13/06/2026, 14:32").
+export function fmtDateTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? "—"
+    : d.toLocaleString("es-VE", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+}
+
 // Fecha de hoy en formato YYYY-MM-DD (para inputs date).
 export function todayISO(): string {
   const d = new Date();
