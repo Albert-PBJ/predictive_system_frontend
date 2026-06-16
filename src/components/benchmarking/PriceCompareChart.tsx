@@ -36,6 +36,22 @@ export default function PriceCompareChart({ series, height = 360 }: Props) {
     return { axisPeriods: periods, axisLabels: periods.map((p) => map.get(p) as string) };
   }, [series]);
 
+  // react-apexcharts compara opciones/series con un deep-equal que trata como iguales
+  // dos funciones-cierre distintas; al cambiar de producto/competidor en los desplegables
+  // puede reutilizar el gráfico por la vía updateSeries y conservar formatters/tooltip
+  // obsoletos, rompiendo el popup al pasar el cursor. Una key derivada de los datos fuerza
+  // el remontaje con cierres frescos en cada cambio.
+  const chartKey = useMemo(
+    () =>
+      series
+        .map((s) => {
+          const sig = (pts: ForecastPoint[]) => pts.map((p) => `${p.period}:${p.value}`).join(",");
+          return `${s.label}|${sig(s.history)}|${sig(s.forecast)}`;
+        })
+        .join("#"),
+    [series],
+  );
+
   if (!axisPeriods.length) {
     return <div className="flex h-72 items-center justify-center text-sm text-gray-400">Sin datos para mostrar</div>;
   }
@@ -97,8 +113,8 @@ export default function PriceCompareChart({ series, height = 360 }: Props) {
 
   return (
     <div className="max-w-full overflow-x-auto custom-scrollbar">
-      <div className="min-w-[640px]">
-        <Chart options={options} series={apexSeries} type="line" height={height} />
+      <div className="min-w-[640px]" style={{ minHeight: height }}>
+        <Chart key={chartKey} options={options} series={apexSeries} type="line" height={height} />
       </div>
     </div>
   );

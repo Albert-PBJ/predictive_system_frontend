@@ -70,6 +70,22 @@ export default function ForecastChart({
   const useBand = showBand && !isBar && forecast.some((f) => f.lower !== undefined);
   const chartType: "bar" | "line" | "rangeArea" = isBar ? "bar" : useBand ? "rangeArea" : "line";
 
+  // react-apexcharts compara opciones/series con un deep-equal que considera iguales
+  // dos funciones-cierre distintas; por eso, cuando solo cambian los datos pero el eje
+  // se mantiene (p. ej. al cambiar de producto en el desplegable: mismos meses), cree
+  // que las opciones no cambiaron y reutiliza el gráfico por la vía updateSeries,
+  // conservando un tooltip.custom obsoleto que apunta a los datos anteriores: el popup
+  // se rompe al pasar el cursor (y el redibujo de error provoca el "salto"/scroll).
+  // Forzamos el remontaje con una key derivada de los datos para reconstruir el gráfico
+  // con cierres frescos. La selección de período no entra en la key (solo mueve una
+  // anotación) para que inspeccionar meses siga siendo fluido.
+  const chartKey = useMemo(() => {
+    const sig = (pts: ForecastPoint[]) =>
+      pts.map((p) => `${p.period}:${p.value}:${p.lower ?? ""}:${p.upper ?? ""}`).join(",");
+    const ex = extraSeries.map((s) => `${s.name}=${s.data.join("|")}`).join(";");
+    return `${chartType}#${sig(history)}#${sig(forecast)}#${ex}`;
+  }, [chartType, history, forecast, extraSeries]);
+
   // Series en formato {x, y}, de longitud completa y alineadas por índice.
   type XY = { x: string; y: number | null };
   type XYBand = { x: string; y: [number, number] };
@@ -229,8 +245,8 @@ export default function ForecastChart({
 
   return (
     <div className="max-w-full overflow-x-auto custom-scrollbar">
-      <div className="min-w-[640px]">
-        <Chart options={options} series={series} type={chartType} height={height} />
+      <div className="min-w-[640px]" style={{ minHeight: height }}>
+        <Chart key={chartKey} options={options} series={series} type={chartType} height={height} />
       </div>
     </div>
   );

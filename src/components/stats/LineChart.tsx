@@ -37,6 +37,14 @@ export default function LineChart({
 
   const resolvedColors = colors ?? series.map((s, i) => s.color ?? pickColors(series.length)[i]);
 
+  // Key derivada de los datos: fuerza el remontaje cuando cambian (p. ej. al cambiar de
+  // rango/serie) para que react-apexcharts no reutilice el gráfico por updateSeries con un
+  // formatter de tooltip obsoleto (cierre que apunta a datos anteriores → popup roto al
+  // pasar el cursor). El deep-equal de la librería considera iguales dos cierres distintos.
+  const chartKey = `${type}#${categories.join(",")}#${series
+    .map((s) => `${s.name}:${s.data.join("|")}`)
+    .join(";")}`;
+
   const options: ApexOptions = {
     chart: { fontFamily: "Outfit, sans-serif", type, toolbar: { show: false } },
     colors: resolvedColors,
@@ -80,8 +88,8 @@ export default function LineChart({
 
   return (
     <div className="max-w-full overflow-x-auto custom-scrollbar">
-      <div style={{ minWidth: Math.max(categories.length * 56, 360) }}>
-        <Chart options={options} series={series} type={type} height={height} />
+      <div style={{ minWidth: Math.max(categories.length * 56, 360), minHeight: height }}>
+        <Chart key={chartKey} options={options} series={series} type={type} height={height} />
       </div>
     </div>
   );
