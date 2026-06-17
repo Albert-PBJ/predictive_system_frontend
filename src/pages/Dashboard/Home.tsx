@@ -33,7 +33,7 @@ import AlertsPanel from "../../components/dashboard/AlertsPanel";
 import ExchangeRateCard from "../../components/dashboard/ExchangeRateCard";
 import CompetitivePanel from "../../components/dashboard/CompetitivePanel";
 
-/** Tarjeta compacta de salud de inventario (instantánea actual). */
+/** Tarjeta compacta de estado de inventario (instantánea actual). */
 function InventoryCard({ inv }: { inv: InventoryHealth }) {
   const pill = (label: string, n: number, cls: string) => (
     <div className={`rounded-lg p-2.5 text-center ${cls}`}>
@@ -42,7 +42,7 @@ function InventoryCard({ inv }: { inv: InventoryHealth }) {
     </div>
   );
   return (
-    <ChartCard title="Salud del inventario" subtitle="Estado actual del stock (no depende del rango)">
+    <ChartCard title="Estado del inventario" subtitle="Estado actual del stock (no depende del rango)">
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-lg bg-gray-50 p-3 dark:bg-white/[0.03]">
           <p className="text-xs text-gray-500 dark:text-gray-400">Unidades en stock</p>
@@ -294,7 +294,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Salud de modelos (sensible) */}
+              {/* Estado de modelos (sensible) */}
               {/* data.model_health && data.model_health.length > 0 && (
                 <ModelHealthStrip rows={data.model_health} />
               ) */}

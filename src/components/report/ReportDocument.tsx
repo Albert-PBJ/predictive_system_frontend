@@ -271,7 +271,7 @@ export default function ReportDocument({ data, overview, revenueForecast, narrat
 
         {data.health_index ? (
           <View style={styles.block}>
-            <Text style={styles.secTitle}>Salud global del negocio (IVC)</Text>
+            <Text style={styles.secTitle}>Estado global del negocio (IVC)</Text>
             <Text style={styles.secSub}>
               Índice de Ventaja Competitiva: un puntaje 0-100 que combina rentabilidad, crecimiento, conversión,
               retención, inventario y competitividad de precio
@@ -335,7 +335,7 @@ export default function ReportDocument({ data, overview, revenueForecast, narrat
             title="Detal vs. institucional (tendencia)"
             caption="La historia estratégica: el detal tiende a estancarse mientras lo institucional sostiene el negocio."
           >
-            <LineChartPdf labels={typeTrendLabels} series={typeTrendSeries} width={235} height={120} />
+            <LineChartPdf labels={typeTrendLabels} series={typeTrendSeries} width={235} height={120} valueFmt={fmtCompactUSD} />
             <Legend items={typeTrendSeries.map((s) => ({ label: s.name, color: s.color }))} />
           </ChartBox>
           <ChartBox
@@ -412,7 +412,7 @@ export default function ReportDocument({ data, overview, revenueForecast, narrat
         </View>
 
         <View style={[styles.block, { marginTop: 12 }]}>
-          <Text style={styles.chartTitle}>Salud del inventario (estado actual)</Text>
+          <Text style={styles.chartTitle}>Estado actual del inventario</Text>
           <View style={[styles.pills, { marginTop: 6 }]}>
             <View style={[styles.pill, { backgroundColor: "#ecfdf3" }]}>
               <Text style={[styles.pillValue, { color: palette.green }]}>{fmtInt(inv.ok_stock)}</Text>
@@ -456,6 +456,7 @@ export default function ReportDocument({ data, overview, revenueForecast, narrat
                 width={500}
                 height={150}
                 divider={fc.divider}
+                valueFmt={fmtCompactUSD}
               />
               <Legend
                 items={[

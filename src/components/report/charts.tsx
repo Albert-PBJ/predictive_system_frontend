@@ -34,7 +34,8 @@ interface BarSeries {
   data: number[];
 }
 
-/** Barras verticales agrupadas (1-2 series). Alturas relativas al máximo del set. */
+/** Barras verticales agrupadas (1-2 series) con eje Y de valores de referencia +
+ *  líneas de cuadrícula. Las alturas se escalan a un máximo "bonito" (redondeado). */
 export function VBars({
   labels,
   series,
@@ -47,42 +48,75 @@ export function VBars({
   valueFmt?: (n: number) => string;
 }) {
   const all = series.flatMap((s) => s.data);
-  const max = Math.max(1, ...all);
+  const dom = niceScale(0, Math.max(0, ...all));
+  const max = dom.max || 1;
   const many = labels.length > 8;
   const barW = series.length > 1 ? 5 : 12;
+  const gutter = 30; // canalón para las etiquetas del eje Y
+  const padTop = 6; // espacio arriba para que la etiqueta del tope no se desborde
+  const usable = height - padTop;
+  // Posición vertical (desde el tope del área de trazado) de un valor del eje.
+  const topOf = (v: number) => padTop + (1 - v / max) * usable;
   return (
     <View>
-      <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 2 }}>
-        <Text style={{ fontSize: 6, color: palette.muted }}>Máx: {valueFmt(max)}</Text>
-      </View>
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "flex-end",
-          height,
-          borderBottomWidth: 1,
-          borderBottomColor: palette.grid,
-        }}
-      >
-        {labels.map((_, i) => (
-          <View key={i} style={{ flex: 1, flexDirection: "row", alignItems: "flex-end", justifyContent: "center" }}>
-            {series.map((s, si) => (
-              <View
-                key={si}
-                style={{
-                  width: barW,
-                  height: Math.max(1, (s.data[i] / max) * (height - 2)),
-                  backgroundColor: s.color,
-                  marginHorizontal: 1,
-                  borderTopLeftRadius: 1.5,
-                  borderTopRightRadius: 1.5,
-                }}
-              />
+      <View style={{ flexDirection: "row" }}>
+        {/* Canalón del eje Y: valores de referencia alineados a cada línea de cuadrícula. */}
+        <View style={{ width: gutter, height, position: "relative" }}>
+          {dom.ticks.map((t, k) => (
+            <Text
+              key={k}
+              style={{
+                position: "absolute",
+                top: topOf(t) - 3,
+                left: 0,
+                width: gutter - 4,
+                textAlign: "right",
+                fontSize: 6,
+                color: palette.muted,
+              }}
+            >
+              {valueFmt(t)}
+            </Text>
+          ))}
+        </View>
+        {/* Área de trazado: cuadrícula de fondo + barras. */}
+        <View style={{ flex: 1, height, position: "relative" }}>
+          {dom.ticks.map((t, k) => (
+            <View
+              key={`g${k}`}
+              style={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                top: topOf(t),
+                borderTopWidth: 0.5,
+                borderTopColor: palette.grid,
+              }}
+            />
+          ))}
+          <View style={{ flexDirection: "row", alignItems: "flex-end", height }}>
+            {labels.map((_, i) => (
+              <View key={i} style={{ flex: 1, flexDirection: "row", alignItems: "flex-end", justifyContent: "center" }}>
+                {series.map((s, si) => (
+                  <View
+                    key={si}
+                    style={{
+                      width: barW,
+                      height: Math.max(1, (s.data[i] / max) * usable),
+                      backgroundColor: s.color,
+                      marginHorizontal: 1,
+                      borderTopLeftRadius: 1.5,
+                      borderTopRightRadius: 1.5,
+                    }}
+                  />
+                ))}
+              </View>
             ))}
           </View>
-        ))}
+        </View>
       </View>
-      <View style={{ flexDirection: "row", marginTop: 2 }}>
+      {/* etiquetas del eje X (desplazadas por el canalón del eje Y) */}
+      <View style={{ flexDirection: "row", marginTop: 2, marginLeft: gutter }}>
         {labels.map((l, i) => (
           <Text key={i} style={{ flex: 1, textAlign: "center", fontSize: 5.5, color: palette.muted }}>
             {many && i % 2 === 1 ? "" : trunc(l, 7)}
@@ -166,15 +200,35 @@ interface LineSeries {
   dashed?: boolean;
 }
 
-/** Gráfico de líneas SVG. Soporta tramos sólidos (historia) y punteados (pronóstico)
- *  y un divisor vertical opcional (límite historia/futuro). Sin texto SVG: las
- *  etiquetas de eje van como <Text> normal debajo para evitar fricciones de tipos. */
+/** Escala "bonita" para el eje Y: redondea min/max a números legibles y devuelve los
+ *  valores de tick, de modo que las referencias del eje caigan en cifras redondas. */
+function niceScale(rawMin: number, rawMax: number, count = 4): { min: number; max: number; ticks: number[] } {
+  if (!Number.isFinite(rawMin) || !Number.isFinite(rawMax) || rawMin === rawMax) {
+    const base = Number.isFinite(rawMin) ? rawMin : 0;
+    return { min: base, max: base + 1, ticks: [base, base + 1] };
+  }
+  const rawStep = (rawMax - rawMin) / count;
+  const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const norm = rawStep / mag;
+  const step = (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10) * mag;
+  const min = Math.floor(rawMin / step) * step;
+  const max = Math.ceil(rawMax / step) * step;
+  const ticks: number[] = [];
+  for (let v = min; v <= max + step * 0.5; v += step) ticks.push(v);
+  return { min, max, ticks };
+}
+
+/** Gráfico de líneas SVG. Soporta tramos sólidos (historia) y punteados (pronóstico),
+ *  un divisor vertical opcional (límite historia/futuro) y un eje Y con valores de
+ *  referencia + líneas de cuadrícula. Sin texto SVG: las etiquetas de eje van como
+ *  <Text> normal (las del eje Y posicionadas en su canalón) para evitar fricciones de tipos. */
 export function LineChartPdf({
   labels,
   series,
   width = 250,
   height = 140,
   divider,
+  valueFmt = fmtNum,
 }: {
   labels: string[];
   series: LineSeries[];
@@ -182,19 +236,19 @@ export function LineChartPdf({
   height?: number;
   /** Índice de etiqueta donde dibujar la línea divisoria (historia | futuro). */
   divider?: number;
+  /** Formato de los valores de referencia del eje Y. */
+  valueFmt?: (n: number) => string;
 }) {
   const all = series.flatMap((s) => s.data).filter((v): v is number => v != null);
   if (!all.length || labels.length < 2) return <Empty />;
-  let min = Math.min(...all);
-  let max = Math.max(...all);
-  if (min === max) max = min + 1;
-  // Margen del 8% para que las líneas no toquen los bordes.
-  const pad = (max - min) * 0.08;
-  min -= pad;
-  max += pad;
+  const dom = niceScale(Math.min(...all), Math.max(...all));
+  const min = dom.min;
+  const max = dom.max === dom.min ? dom.min + 1 : dom.max;
 
-  const plotL = 6;
-  const plotR = width - 6;
+  const gutter = 30; // canalón para las etiquetas del eje Y
+  const plotW = width - gutter;
+  const plotL = 2;
+  const plotR = plotW - 2;
   const plotT = 8;
   const plotB = height - 4;
   const n = labels.length;
@@ -221,42 +275,65 @@ export function LineChartPdf({
 
   return (
     <View>
-      <Svg width={width} height={height}>
-        {/* eje base */}
-        <Line x1={plotL} y1={plotB} x2={plotR} y2={plotB} stroke={palette.grid} strokeWidth={1} />
-        {divider != null && divider > 0 && divider < n - 1 && (
-          <Line
-            x1={xAt(divider)}
-            y1={plotT}
-            x2={xAt(divider)}
-            y2={plotB}
-            stroke={palette.muted}
-            strokeWidth={0.8}
-            strokeDasharray="2 2"
-          />
-        )}
-        {series.map((s, si) =>
-          runs(s.data).map((run, ri) => (
-            <Polyline
-              key={`${si}-${ri}`}
-              points={run.map((p) => `${xAt(p.i).toFixed(1)},${yAt(p.v).toFixed(1)}`).join(" ")}
-              fill="none"
-              stroke={s.color}
-              strokeWidth={1.6}
-              strokeLinejoin="round"
-              strokeLinecap="round"
-              strokeDasharray={s.dashed ? "4 3" : undefined}
+      <View style={{ flexDirection: "row" }}>
+        {/* Canalón del eje Y: valores de referencia alineados a cada línea de cuadrícula. */}
+        <View style={{ width: gutter, height, position: "relative" }}>
+          {dom.ticks.map((t, k) => (
+            <Text
+              key={k}
+              style={{
+                position: "absolute",
+                top: yAt(t) - 3,
+                left: 0,
+                width: gutter - 4,
+                textAlign: "right",
+                fontSize: 6,
+                color: palette.muted,
+              }}
+            >
+              {valueFmt(t)}
+            </Text>
+          ))}
+        </View>
+        <Svg width={plotW} height={height}>
+          {/* líneas de cuadrícula del eje Y (una por cada valor de referencia) */}
+          {dom.ticks.map((t, k) => (
+            <Line key={`g${k}`} x1={plotL} y1={yAt(t)} x2={plotR} y2={yAt(t)} stroke={palette.grid} strokeWidth={0.5} />
+          ))}
+          {divider != null && divider > 0 && divider < n - 1 && (
+            <Line
+              x1={xAt(divider)}
+              y1={plotT}
+              x2={xAt(divider)}
+              y2={plotB}
+              stroke={palette.muted}
+              strokeWidth={0.8}
+              strokeDasharray="2 2"
             />
-          )),
-        )}
-        {/* punto final de cada serie */}
-        {series.map((s, si) => {
-          const last = [...s.data].map((v, i) => ({ v, i })).reverse().find((p) => p.v != null);
-          if (!last || last.v == null) return null;
-          return <Circle key={`c${si}`} cx={xAt(last.i)} cy={yAt(last.v)} r={2} fill={s.color} />;
-        })}
-      </Svg>
-      <View style={{ flexDirection: "row", marginTop: 2 }}>
+          )}
+          {series.map((s, si) =>
+            runs(s.data).map((run, ri) => (
+              <Polyline
+                key={`${si}-${ri}`}
+                points={run.map((p) => `${xAt(p.i).toFixed(1)},${yAt(p.v).toFixed(1)}`).join(" ")}
+                fill="none"
+                stroke={s.color}
+                strokeWidth={1.6}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                strokeDasharray={s.dashed ? "4 3" : undefined}
+              />
+            )),
+          )}
+          {/* punto final de cada serie */}
+          {series.map((s, si) => {
+            const last = [...s.data].map((v, i) => ({ v, i })).reverse().find((p) => p.v != null);
+            if (!last || last.v == null) return null;
+            return <Circle key={`c${si}`} cx={xAt(last.i)} cy={yAt(last.v)} r={2} fill={s.color} />;
+          })}
+        </Svg>
+      </View>
+      <View style={{ flexDirection: "row", marginTop: 2, marginLeft: gutter }}>
         {labelIdx.map((idx, k) => (
           <Text
             key={k}

@@ -53,7 +53,7 @@ export default function HealthGauge({ data }: { data: HealthIndex }) {
       <div className="mb-2 flex items-start justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">Índice de Ventaja Competitiva</h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Salud global del negocio (IVC)</p>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Estado global del negocio (IVC)</p>
         </div>
         <span className={`rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold dark:bg-white/10 ${status.text}`}>
           {status.label}
