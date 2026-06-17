@@ -52,6 +52,7 @@ export default function ExchangeRateForecast() {
         onHorizon={setHorizon}
         chartType="area"
         logScale={logScale}
+        advice={{ target: "exchange-rate", rate }}
         extraControls={
           <>
             <div className="w-52">

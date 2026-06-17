@@ -44,6 +44,7 @@ export default function ProfitForecast() {
         horizon={horizon}
         onHorizon={setHorizon}
         chartType="area"
+        advice={{ target: "profit" }}
       />
     </>
   );

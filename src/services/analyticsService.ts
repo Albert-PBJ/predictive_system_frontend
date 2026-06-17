@@ -204,6 +204,28 @@ export interface ReportNarrative {
   closing?: string;
 }
 
+// --- Consejo/lectura del pronóstico redactado por LLM (degrada a determinista) ---
+// El backend toma el pronóstico ya calculado y pide al modelo una lectura accionable;
+// si el LLM no está disponible devuelve una lectura determinista (`available: false`)
+// con el mismo contenido, así la tarjeta nunca queda vacía.
+export interface ForecastAdvice {
+  available: boolean;
+  generated_by?: string | null;
+  headline?: string;
+  reading?: string;
+  recommendations?: string[];
+  reason?: string;
+}
+
+export interface ForecastAdviceParams {
+  target: "demand" | "sales" | "profit" | "exchange-rate" | "product-price" | "inventory" | "quote";
+  product?: number | null;
+  horizon?: number;
+  metric?: string;
+  rate?: string;
+  model?: string;
+}
+
 export const analyticsService = {
   async overview(): Promise<OverviewResponse> {
     const { data } = await api.get<OverviewResponse>("/analytics/overview");
@@ -264,6 +286,16 @@ export const analyticsService = {
     const { data } = await api.get<CompetitorResponse>("/analytics/benchmark/competitors", {
       params: { category: category || undefined, product: product || undefined },
     });
+    return data;
+  },
+  async forecastAdvice(params: ForecastAdviceParams): Promise<ForecastAdvice> {
+    const clean: Record<string, string | number> = { target: params.target };
+    if (params.product != null) clean.product = params.product;
+    if (params.horizon != null) clean.horizon = params.horizon;
+    if (params.metric) clean.metric = params.metric;
+    if (params.rate) clean.rate = params.rate;
+    if (params.model) clean.model = params.model;
+    const { data } = await api.get<ForecastAdvice>("/analytics/forecast/advice", { params: clean });
     return data;
   },
 };

@@ -7,6 +7,7 @@ import Spinner from "../../components/common/Spinner";
 import Alert from "../../components/ui/alert/Alert";
 import Badge from "../../components/ui/badge/Badge";
 import ModelMetricsCard from "../../components/analytics/ModelMetricsCard";
+import ForecastAdviceCard from "../../components/analytics/ForecastAdviceCard";
 import {
   Table,
   TableBody,
@@ -131,6 +132,8 @@ export default function QuoteConversionForecast() {
               </div>
             </div>
           </div>
+
+          <ForecastAdviceCard params={{ target: "quote" }} enabled={Boolean(data)} />
 
           <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
             {/* Pipeline table */}

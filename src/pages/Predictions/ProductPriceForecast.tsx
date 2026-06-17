@@ -58,6 +58,7 @@ export default function ProductPriceForecast() {
         horizon={horizon}
         onHorizon={setHorizon}
         chartType="area"
+        advice={{ target: "product-price", product: product ?? undefined }}
         extraControls={<ProductSelect value={product} onChange={(id) => setProduct(id)} />}
         belowChart={vesNote}
         emptyHint="Este producto no tiene suficiente historial de precios para pronosticar."

@@ -8,7 +8,8 @@ import { ListIcon } from "../../icons";
 import ForecastChart, { type ChartKind } from "./ForecastChart";
 import ModelMetricsCard from "./ModelMetricsCard";
 import ForecastDataModal from "./ForecastDataModal";
-import { HORIZON_OPTIONS, type ForecastResponse } from "../../services/analyticsService";
+import ForecastAdviceCard from "./ForecastAdviceCard";
+import { HORIZON_OPTIONS, type ForecastResponse, type ForecastAdviceParams } from "../../services/analyticsService";
 
 interface ForecastViewProps {
   data: ForecastResponse | null;
@@ -24,6 +25,9 @@ interface ForecastViewProps {
   logScale?: boolean;
   belowChart?: React.ReactNode;
   emptyHint?: string;
+  /** Si se pasa, muestra debajo del gráfico una tarjeta con la lectura del pronóstico
+   *  redactada por el LLM. El horizonte actual se inyecta automáticamente. */
+  advice?: Omit<ForecastAdviceParams, "horizon">;
 }
 
 /**
@@ -45,6 +49,7 @@ export default function ForecastView({
   logScale = false,
   belowChart,
   emptyHint = "No hay datos suficientes para generar este pronóstico todavía.",
+  advice,
 }: ForecastViewProps) {
   const allPoints = useMemo(() => [...(data?.history || []), ...(data?.forecast || [])], [data]);
   const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
@@ -130,6 +135,11 @@ export default function ForecastView({
 
         {belowChart}
       </div>
+
+      {/* Lectura del pronóstico redactada por el LLM (debajo del gráfico) */}
+      {advice && (
+        <ForecastAdviceCard params={{ ...advice, horizon }} enabled={Boolean(hasData) && !insufficient} />
+      )}
 
       {/* Métricas del modelo */}
       {hasData && !insufficient && (

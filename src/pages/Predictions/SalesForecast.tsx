@@ -49,6 +49,7 @@ export default function SalesForecast() {
         horizon={horizon}
         onHorizon={setHorizon}
         chartType={metric === "count" ? "bar" : "area"}
+        advice={{ target: "sales", metric }}
         extraControls={
           <div className="w-52">
             <Label>Métrica</Label>

@@ -120,6 +120,7 @@ export default function InventoryForecast() {
         onHorizon={setHorizon}
         chartType="bar"
         showBand={false}
+        advice={{ target: "inventory", product: product ?? undefined }}
         extraControls={<ProductSelect value={product} onChange={(id) => setProduct(id)} />}
         yAnnotations={annotations}
         belowChart={recommendation}

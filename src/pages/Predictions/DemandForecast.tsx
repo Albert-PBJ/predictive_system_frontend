@@ -45,6 +45,7 @@ export default function DemandForecast() {
         horizon={horizon}
         onHorizon={setHorizon}
         chartType="area"
+        advice={{ target: "demand", product: product ?? undefined }}
         extraControls={<ProductSelect value={product} onChange={(id) => setProduct(id)} />}
         emptyHint="Este producto no tiene suficiente historial de ventas para pronosticar su demanda."
       />
