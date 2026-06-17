@@ -121,6 +121,8 @@ export interface ObservationRow {
 export interface BenchComparison {
   range: BenchRange;
   narrative: string[];
+  competitors: string[];
+  selected_competitor: string;
   meta: {
     n_obs: number;
     n_competitors: number;
@@ -173,6 +175,8 @@ export interface BenchForecast {
   narrative: string[];
   horizon: number;
   categories: string[];
+  competitors: string[];
+  selected_competitor: string;
   matched_products: MatchedProduct[];
   market_overall: BenchChart | null;
   by_category: CategoryForecast[];
@@ -206,23 +210,36 @@ function rangeParams(range?: Partial<DateRange>): Record<string, string> {
   return params;
 }
 
+// El competidor `__all__` (o vacío) significa "todos": no se manda al backend.
+function competitorParam(competitor?: string): string | undefined {
+  return competitor && competitor !== ALL_COMPETITORS ? competitor : undefined;
+}
+
 export const benchmarkingService = {
-  // Comparaciones descriptivas para el rango (Desde/Hasta recalcula todo).
-  async comparison(range?: Partial<DateRange>): Promise<BenchComparison> {
+  // Comparaciones descriptivas para el rango (Desde/Hasta recalcula todo). `competitor`
+  // acota todo el panel a uno; por defecto se agregan todos.
+  async comparison(range?: Partial<DateRange>, competitor?: string): Promise<BenchComparison> {
     const { data } = await api.get<BenchComparison>("/analytics/benchmarking/comparison", {
-      params: rangeParams(range),
+      params: { ...rangeParams(range), competitor: competitorParam(competitor) },
     });
     return data;
   },
   // Pronóstico de mercado vs. nuestros precios. El rango define la ventana histórica;
-  // el pronóstico la extiende `horizon` meses. `category` enfoca una categoría.
+  // el pronóstico la extiende `horizon` meses. `category` enfoca una categoría y
+  // `competitor` acota el "mercado" a un único competidor (por defecto, todos).
   async forecast(
     range: Partial<DateRange> | undefined,
     horizon: number,
     category?: string,
+    competitor?: string,
   ): Promise<BenchForecast> {
     const { data } = await api.get<BenchForecast>("/analytics/benchmarking/forecast", {
-      params: { ...rangeParams(range), horizon, category: category || undefined },
+      params: {
+        ...rangeParams(range),
+        horizon,
+        category: category || undefined,
+        competitor: competitorParam(competitor),
+      },
     });
     return data;
   },

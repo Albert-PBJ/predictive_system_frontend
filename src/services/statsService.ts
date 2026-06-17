@@ -262,6 +262,44 @@ export interface ExecutiveDashboard {
   recent_sales: RecentSale[];
 }
 
+// --- Panel de Inicio del encargado de inventario (rol WAREHOUSE) ---
+// Versión acotada del panel: solo stock/productos, sin ventas/clientes/ingresos.
+export interface WarehouseStockCategory {
+  category: string;
+  products: number;
+  units: number;
+  low_stock: number;
+  out_of_stock: number;
+}
+
+export interface RestockRow {
+  product_id: number;
+  name: string;
+  sku: string | null;
+  category: string;
+  stock: number;
+  min_stock: number;
+  deficit: number;
+  status: "out" | "low";
+}
+
+export interface WarehouseDashboard {
+  range: StatsRange;
+  scope: { type: "warehouse"; label: string };
+  narrative: string[];
+  inventory_health: InventoryHealth;
+  stock_by_category: WarehouseStockCategory[];
+  restock_list: RestockRow[];
+  restock_count: number;
+  no_demand: NoDemandRow[];
+  no_demand_count: number;
+  alerts: DashboardAlert[];
+}
+
+// El panel de Inicio devuelve la versión ejecutiva (empresa/vendedor) o la de
+// inventario (encargado), discriminadas por `scope.type`.
+export type DashboardResponse = ExecutiveDashboard | WarehouseDashboard;
+
 // Bloque `range` común a los paneles de detalle con "máquina del tiempo": el rango
 // elegido (con etiquetas) + los límites de datos disponibles para el selector de fechas.
 export interface StatsRange {
@@ -394,8 +432,8 @@ export interface QuoteStats {
 export const statsService = {
   // Panel de Inicio ejecutivo. `range` (Desde/Hasta) recalcula todo el panel; si se
   // omite, el backend usa los últimos 12 meses.
-  async dashboard(range?: Partial<DateRange>): Promise<ExecutiveDashboard> {
-    const { data } = await api.get<ExecutiveDashboard>("/analytics/stats/dashboard", { params: rangeParams(range) });
+  async dashboard(range?: Partial<DateRange>): Promise<DashboardResponse> {
+    const { data } = await api.get<DashboardResponse>("/analytics/stats/dashboard", { params: rangeParams(range) });
     return data;
   },
   // Los paneles de detalle comparten la misma "máquina del tiempo": `range`

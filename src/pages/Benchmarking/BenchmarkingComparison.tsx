@@ -4,6 +4,8 @@ import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import Spinner from "../../components/common/Spinner";
 import Alert from "../../components/ui/alert/Alert";
 import Badge from "../../components/ui/badge/Badge";
+import Select from "../../components/form/Select";
+import Label from "../../components/form/Label";
 
 import ChartCard from "../../components/stats/ChartCard";
 import StatCard from "../../components/stats/StatCard";
@@ -14,7 +16,7 @@ import RankTable from "../../components/stats/RankTable";
 import DateRangeFilter from "../../components/dashboard/DateRangeFilter";
 import NarrativeBanner from "../../components/dashboard/NarrativeBanner";
 import { positionMeta } from "../../components/analytics/format";
-import { benchmarkingService } from "../../services/benchmarkingService";
+import { benchmarkingService, ALL_COMPETITORS } from "../../services/benchmarkingService";
 import type {
   BenchComparison,
   CompetitorRow,
@@ -27,6 +29,7 @@ import { fmtInt, fmtUSD, fmtDate } from "../../utils/format";
 
 export default function BenchmarkingComparison() {
   const [range, setRange] = useState<Partial<DateRange>>({});
+  const [competitor, setCompetitor] = useState<string>(ALL_COMPETITORS);
   const [data, setData] = useState<BenchComparison | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +39,7 @@ export default function BenchmarkingComparison() {
     setLoading(true);
     setError(null);
     benchmarkingService
-      .comparison(range)
+      .comparison(range, competitor)
       .then((d) => active && setData(d))
       .catch((e) => active && setError(getApiError(e, "No se pudo cargar la comparación de competencia.")))
       .finally(() => active && setLoading(false));
@@ -44,10 +47,14 @@ export default function BenchmarkingComparison() {
       active = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [range.from, range.to]);
+  }, [range.from, range.to, competitor]);
 
   const displayFrom = range.from ?? data?.range.from ?? "";
   const displayTo = range.to ?? data?.range.to ?? "";
+  const competitorOptions = [
+    { value: ALL_COMPETITORS, label: "Todos los competidores" },
+    ...(data?.competitors || []).map((c) => ({ value: c, label: c })),
+  ];
 
   return (
     <>
@@ -78,6 +85,24 @@ export default function BenchmarkingComparison() {
             onChange={setRange}
             loading={loading}
           />
+
+          {/* Selector de competidor: acota todo el panel a uno (o a todos). */}
+          <div className="flex flex-wrap items-end gap-4 rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03] sm:p-5">
+            <div className="w-72">
+              <Label>Competidor</Label>
+              <Select
+                key={`comp-${competitor}`}
+                options={competitorOptions}
+                defaultValue={competitor}
+                onChange={setCompetitor}
+              />
+            </div>
+            <p className="pb-2.5 text-xs text-gray-500 dark:text-gray-400">
+              {competitor === ALL_COMPETITORS
+                ? "Mostrando todos los competidores. Elige uno para recalcular el panel sobre sus datos."
+                : "Panel filtrado a un único competidor."}
+            </p>
+          </div>
 
           {data.meta.n_obs === 0 ? (
             <div className="flex h-60 items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 text-center text-sm text-gray-500 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-400">

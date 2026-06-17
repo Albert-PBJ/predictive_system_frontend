@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import Spinner from "../../components/common/Spinner";
 import Alert from "../../components/ui/alert/Alert";
 import Badge from "../../components/ui/badge/Badge";
+import Button from "../../components/ui/button/Button";
 import {
   Table,
   TableBody,
@@ -34,18 +35,43 @@ export default function PredictionsOverview() {
   const [data, setData] = useState<OverviewResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retraining, setRetraining] = useState(false);
+  const [retrainMsg, setRetrainMsg] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const d = await analyticsService.overview();
+    setData(d);
+    return d;
+  }, []);
 
   useEffect(() => {
     let active = true;
-    analyticsService
-      .overview()
-      .then((d) => active && setData(d))
+    load()
       .catch((e) => active && setError(getApiError(e, "No se pudo cargar el panel predictivo.")))
       .finally(() => active && setLoading(false));
     return () => {
       active = false;
     };
-  }, []);
+  }, [load]);
+
+  const handleRetrain = async () => {
+    setRetraining(true);
+    setError(null);
+    setRetrainMsg(null);
+    try {
+      const res = await analyticsService.retrain();
+      await load(); // recarga el registro + titulares con los modelos recién entrenados
+      setRetrainMsg(
+        `Modelos reentrenados: ${res.active_models} activos${
+          res.trained_at ? ` · ${fmtDate(res.trained_at)}` : ""
+        }.`
+      );
+    } catch (e) {
+      setError(getApiError(e, "No se pudieron reentrenar los modelos."));
+    } finally {
+      setRetraining(false);
+    }
+  };
 
   const h = data?.headlines;
 
@@ -138,10 +164,32 @@ export default function PredictionsOverview() {
 
           {/* Registro de modelos */}
           <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-            <h4 className="mb-3 text-sm font-medium text-gray-700 dark:text-gray-200">Registro de modelos activos</h4>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-200">Registro de modelos activos</h4>
+                <p className="mt-0.5 text-xs text-gray-400">
+                  Reentrena con los datos más recientes (ventas, tasas y scraping) y recalcula las métricas.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleRetrain}
+                disabled={retraining}
+                startIcon={retraining ? <Spinner className="h-4 w-4 text-current" /> : undefined}
+              >
+                {retraining ? "Reentrenando…" : "Reentrenar modelos"}
+              </Button>
+            </div>
+            {retrainMsg && (
+              <div className="mb-3">
+                <Alert variant="success" title="Modelos actualizados" message={retrainMsg} />
+              </div>
+            )}
             {data.registry.length === 0 ? (
               <p className="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                No hay modelos registrados. Ejecuta <code className="rounded bg-gray-100 px-1 dark:bg-gray-800">python manage.py train_models</code>.
+                No hay modelos registrados. Pulsa <strong>Reentrenar modelos</strong> o ejecuta{" "}
+                <code className="rounded bg-gray-100 px-1 dark:bg-gray-800">python manage.py train_models</code>.
               </p>
             ) : (
               <div className="max-w-full overflow-x-auto custom-scrollbar">

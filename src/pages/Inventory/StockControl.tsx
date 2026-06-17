@@ -25,9 +25,12 @@ import {
   type StockRow,
 } from "../../services/inventoryService";
 import { getApiError } from "../../services/apiError";
-import { fmtUSD, fmtDate } from "../../utils/format";
+import { fmtUSD, fmtDate, fmtInt, fmtCompactUSD } from "../../utils/format";
 import { useAuth } from "../../context/AuthContext";
 import { CAN_MANAGE_STOCK } from "../../services/types";
+import ChartCard from "../../components/stats/ChartCard";
+import DonutChart from "../../components/stats/DonutChart";
+import BarChart from "../../components/stats/BarChart";
 
 const MOV_PAGE_SIZE = 10;
 
@@ -47,6 +50,11 @@ export default function StockControl() {
   const [lowCount, setLowCount] = useState(0);
   const [loadingStock, setLoadingStock] = useState(true);
   const [stockError, setStockError] = useState<string | null>(null);
+
+  // ── Catálogo completo (sin filtros) para los gráficos del encabezado ──
+  // Independiente de la búsqueda de la tabla: los gráficos resumen TODO el inventario.
+  const [allStock, setAllStock] = useState<StockRow[]>([]);
+  const [loadingCharts, setLoadingCharts] = useState(true);
 
   // ── Historial de movimientos ──
   const [movements, setMovements] = useState<Movement[]>([]);
@@ -87,6 +95,51 @@ export default function StockControl() {
       active = false;
     };
   }, [debouncedSearch, lowOnly, reloadToken]);
+
+  // Carga del catálogo completo (sin filtros) para los gráficos; se recarga tras un
+  // movimiento (reloadToken) para reflejar el stock actualizado.
+  useEffect(() => {
+    let active = true;
+    setLoadingCharts(true);
+    inventoryService
+      .getStock({})
+      .then((res) => active && setAllStock(res.results))
+      .catch(() => active && setAllStock([]))
+      .finally(() => active && setLoadingCharts(false));
+    return () => {
+      active = false;
+    };
+  }, [reloadToken]);
+
+  // Agregados para los gráficos (estado del stock + unidades por categoría).
+  const charts = useMemo(() => {
+    let ok = 0;
+    let low = 0;
+    let out = 0;
+    let units = 0;
+    let value = 0;
+    const byCat = new Map<string, number>();
+    for (const p of allStock) {
+      if (p.stock <= 0) out += 1;
+      else if (p.low_stock) low += 1;
+      else ok += 1;
+      const s = Math.max(p.stock, 0);
+      units += s;
+      value += s * (parseFloat(p.sale_price_usd) || 0);
+      const cat = p.category_name || "Sin categoría";
+      byCat.set(cat, (byCat.get(cat) || 0) + s);
+    }
+    const categories = [...byCat.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8);
+    return {
+      status: { ok, low, out },
+      units,
+      value,
+      catLabels: categories.map(([c]) => c),
+      catUnits: categories.map(([, u]) => u),
+    };
+  }, [allStock]);
 
   useEffect(() => {
     setMovPage(1);
@@ -152,6 +205,47 @@ export default function StockControl() {
             </Button>
           </div>
         )}
+      </div>
+
+      {/* Gráficos resumen del inventario (todo el catálogo, no dependen del filtro) */}
+      <div className="mb-6 grid grid-cols-12 gap-4 md:gap-6">
+        <div className="col-span-12 xl:col-span-5">
+          <ChartCard
+            title="Estado del stock"
+            subtitle={`${fmtInt(charts.units)} unidad(es) · ${fmtCompactUSD(charts.value)} a precio de venta`}
+          >
+            {loadingCharts ? (
+              <div className="flex h-[280px] items-center justify-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+                <Spinner /> Cargando…
+              </div>
+            ) : (
+              <DonutChart
+                labels={["Disponible", "Stock bajo", "Sin stock"]}
+                series={[charts.status.ok, charts.status.low, charts.status.out]}
+                colors={["#12b76a", "#f79009", "#f04438"]}
+                valueFormatter={fmtInt}
+                totalLabel="Productos"
+              />
+            )}
+          </ChartCard>
+        </div>
+        <div className="col-span-12 xl:col-span-7">
+          <ChartCard title="Unidades por categoría" subtitle="Existencias actuales por categoría">
+            {loadingCharts ? (
+              <div className="flex h-[300px] items-center justify-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+                <Spinner /> Cargando…
+              </div>
+            ) : (
+              <BarChart
+                categories={charts.catLabels}
+                series={[{ name: "Unidades", data: charts.catUnits }]}
+                horizontal
+                distributed
+                valueFormatter={fmtInt}
+              />
+            )}
+          </ChartCard>
+        </div>
       </div>
 
       {/* Tabla de stock */}

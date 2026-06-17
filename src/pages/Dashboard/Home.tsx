@@ -4,12 +4,13 @@ import Spinner from "../../components/common/Spinner";
 import Alert from "../../components/ui/alert/Alert";
 import { statsService } from "../../services/statsService";
 import type {
+  DashboardResponse,
   DateRange,
-  ExecutiveDashboard,
   InventoryHealth,
   NoDemandRow,
   ExecProductRow,
   ExecCustomerRow,
+  WarehouseDashboard,
 } from "../../services/statsService";
 import { getApiError } from "../../services/apiError";
 import { fmtCompactUSD, fmtDate, fmtInt, fmtUSD } from "../../utils/format";
@@ -32,6 +33,12 @@ import HealthGauge from "../../components/dashboard/HealthGauge";
 import AlertsPanel from "../../components/dashboard/AlertsPanel";
 import ExchangeRateCard from "../../components/dashboard/ExchangeRateCard";
 import CompetitivePanel from "../../components/dashboard/CompetitivePanel";
+import WarehouseHome from "../../components/dashboard/WarehouseHome";
+
+/** ¿El panel es el del encargado de inventario (rol WAREHOUSE)? Discrimina la unión. */
+function isWarehouse(d: DashboardResponse): d is WarehouseDashboard {
+  return d.scope?.type === "warehouse";
+}
 
 /** Tarjeta compacta de estado de inventario (instantánea actual). */
 function InventoryCard({ inv }: { inv: InventoryHealth }) {
@@ -68,7 +75,7 @@ function InventoryCard({ inv }: { inv: InventoryHealth }) {
 export default function Home() {
   const { user, hasRole } = useAuth();
   const [range, setRange] = useState<Partial<DateRange>>({});
-  const [data, setData] = useState<ExecutiveDashboard | null>(null);
+  const [data, setData] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -94,8 +101,11 @@ export default function Home() {
   // Vista personal del vendedor: el panel muestra solo SUS cifras. El backend lo indica
   // con `scope.type === "seller"`; aquí reetiquetamos los títulos y ocultamos los bloques
   // de empresa (capital inmovilizado, alertas del sistema, inventario, reporte ejecutivo).
-  const personal = data?.scope?.type === "seller";
-  const sellerName = data?.scope?.seller_name;
+  // `exec` acota la unión a la vista ejecutiva (empresa/vendedor); el panel de inventario
+  // se renderiza aparte con `WarehouseHome`.
+  const exec = data && !isWarehouse(data) ? data : null;
+  const personal = exec?.scope?.type === "seller";
+  const sellerName = exec?.scope?.seller_name ?? null;
   // Reetiqueta un título según el ámbito ("Mejores clientes" → "Tus mejores clientes").
   const tl = (company: string, mine: string) => (personal ? mine : company);
 
@@ -113,6 +123,9 @@ export default function Home() {
         <div className="flex h-[70vh] items-center justify-center gap-3 text-sm text-gray-500 dark:text-gray-400">
           <Spinner /> Cargando panel ejecutivo…
         </div>
+      ) : isWarehouse(data) ? (
+        // Encargado de inventario: panel acotado a stock/productos (sin ventas/clientes).
+        <WarehouseHome data={data} loading={loading} from={displayFrom} to={displayTo} onRange={setRange} />
       ) : (
         <div className="space-y-4 md:space-y-6">
           {/* Máquina del tiempo: dos selectores Desde/Hasta que recalculan todo el panel. */}

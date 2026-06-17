@@ -226,9 +226,23 @@ export interface ForecastAdviceParams {
   model?: string;
 }
 
+// Resultado del reentrenamiento de modelos (botón del panel predictivo).
+export interface RetrainResult {
+  ok: boolean;
+  active_models: number;
+  total_rows: number;
+  trained_at: string | null;
+}
+
 export const analyticsService = {
   async overview(): Promise<OverviewResponse> {
     const { data } = await api.get<OverviewResponse>("/analytics/overview");
+    return data;
+  },
+  // Reentrena y reescribe el registro de modelos (equivalente a `train_models`) y
+  // limpia la caché del servidor. Síncrono: tarda unos segundos. Gerente/Admin.
+  async retrain(): Promise<RetrainResult> {
+    const { data } = await api.post<RetrainResult>("/analytics/retrain");
     return data;
   },
   // Narrativa del reporte para el rango (Desde/Hasta). Accesible a todo el personal

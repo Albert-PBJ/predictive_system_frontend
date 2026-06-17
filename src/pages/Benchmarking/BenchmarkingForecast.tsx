@@ -55,12 +55,14 @@ export default function BenchmarkingForecast() {
   const [error, setError] = useState<string | null>(null);
 
   // Carga de la vista por categoría + lista de productos comparables (selector).
+  // El competidor es un filtro de página: acota tanto la tabla por categoría como la
+  // lista de productos comparables (matched_products) al competidor elegido.
   useEffect(() => {
     let active = true;
     setLoading(true);
     setError(null);
     benchmarkingService
-      .forecast(range, horizon)
+      .forecast(range, horizon, undefined, competitor)
       .then((d) => {
         if (!active) return;
         setForecast(d);
@@ -75,7 +77,7 @@ export default function BenchmarkingForecast() {
       active = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [range.from, range.to, horizon]);
+  }, [range.from, range.to, horizon, competitor]);
 
   // Comparación del producto seleccionado (competidor vs. interno).
   useEffect(() => {
@@ -103,10 +105,13 @@ export default function BenchmarkingForecast() {
     value: String(m.product_id),
     label: `${m.name} (${m.n_competitors} compet.)`,
   }));
+  // El competidor es un filtro de página: las opciones son TODOS los competidores del
+  // rango (no solo los del producto), para que pueda enfocar tabla + producto a la vez.
   const competitorOptions = [
     { value: ALL_COMPETITORS, label: "Todos los competidores (promedio)" },
-    ...(pf?.competitors || []).map((c) => ({ value: c, label: c })),
+    ...(forecast?.competitors || []).map((c) => ({ value: c, label: c })),
   ];
+  const singleCompetitor = competitor !== ALL_COMPETITORS;
 
   const series: CompareSeries[] = [];
   if (pf?.competitor_series) {
@@ -172,13 +177,33 @@ export default function BenchmarkingForecast() {
 
           {forecast.matched_products.length === 0 ? (
             <div className="flex h-60 items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 text-center text-sm text-gray-500 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-400">
-              No hay productos con equivalente en la competencia en este período. Ejecuta los scrapers de "Datos externos"
-              o <code>rematch_products</code> para asociar la oferta scrapeada al catálogo.
+              {singleCompetitor ? (
+                <span>
+                  {competitor} no tiene productos con equivalente en nuestro catálogo en este período. Elige
+                  «Todos los competidores» o amplía el rango.
+                </span>
+              ) : (
+                <span>
+                  No hay productos con equivalente en la competencia en este período. Ejecuta los scrapers de "Datos
+                  externos" o <code>rematch_products</code> para asociar la oferta scrapeada al catálogo.
+                </span>
+              )}
             </div>
           ) : (
             <>
-              {/* Selectores */}
+              {/* Selectores. El competidor es un filtro de página (enfoca la tabla por
+                  categoría y la lista de productos comparables); el producto pinta el
+                  gráfico de comparación de precio. */}
               <div className="flex flex-wrap items-end gap-4 rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03] sm:p-5">
+                <div className="w-64">
+                  <Label>Competidor</Label>
+                  <Select
+                    key={`comp-${competitor}`}
+                    options={competitorOptions}
+                    defaultValue={competitor}
+                    onChange={setCompetitor}
+                  />
+                </div>
                 <div className="w-72">
                   <Label>Producto</Label>
                   <Select
@@ -186,19 +211,7 @@ export default function BenchmarkingForecast() {
                     options={productOptions}
                     defaultValue={product ? String(product) : ""}
                     placeholder="Selecciona un producto"
-                    onChange={(v) => {
-                      setProduct(Number(v));
-                      setCompetitor(ALL_COMPETITORS);
-                    }}
-                  />
-                </div>
-                <div className="w-64">
-                  <Label>Competidor</Label>
-                  <Select
-                    key={`comp-${product}-${competitor}`}
-                    options={competitorOptions}
-                    defaultValue={competitor}
-                    onChange={setCompetitor}
+                    onChange={(v) => setProduct(Number(v))}
                   />
                 </div>
                 <div className="w-40">
@@ -251,7 +264,11 @@ export default function BenchmarkingForecast() {
               {/* Brecha de competitividad por categoría (panorama de cartera) */}
               <ChartCard
                 title="Brecha de competitividad por categoría"
-                subtitle="Diferencia proyectada entre nuestro precio de catálogo y el de mercado (positivo = más caros que el mercado)"
+                subtitle={
+                  singleCompetitor
+                    ? `Diferencia proyectada entre nuestro precio de catálogo y el de ${competitor} (positivo = más caros que ese competidor)`
+                    : "Diferencia proyectada entre nuestro precio de catálogo y el de mercado (positivo = más caros que el mercado)"
+                }
               >
                 <RankTable<CategoryForecast>
                   rows={forecast.by_category}
