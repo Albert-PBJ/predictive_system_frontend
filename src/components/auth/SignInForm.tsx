@@ -103,6 +103,14 @@ export default function SignInForm() {
                   </span>
                 </div>
               </div>
+              <div className="flex justify-end">
+                <Link
+                  to="/recuperar-contrasena"
+                  className="text-sm text-brand-500 transition-colors hover:text-brand-600 dark:text-brand-400"
+                >
+                  ¿Olvidaste tu contraseña?
+                </Link>
+              </div>
               <div>
                 <button
                   type="submit"

@@ -28,4 +28,21 @@ export const authService = {
     const { data } = await api.get<AuthUser>("/auth/me");
     return data;
   },
+
+  // Recuperación de contraseña por correo. El endpoint responde siempre con un mensaje
+  // genérico (no revela si el correo existe).
+  async requestPasswordReset(email: string): Promise<{ detail: string }> {
+    const { data } = await api.post<{ detail: string }>("/auth/password-reset", { email });
+    return data;
+  },
+
+  // Fija la nueva contraseña con el uid + token recibidos en el enlace del correo.
+  async confirmPasswordReset(uid: string, token: string, newPassword: string): Promise<{ detail: string }> {
+    const { data } = await api.post<{ detail: string }>("/auth/password-reset/confirm", {
+      uid,
+      token,
+      new_password: newPassword,
+    });
+    return data;
+  },
 };
