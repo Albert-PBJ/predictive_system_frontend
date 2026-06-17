@@ -12,7 +12,7 @@ import type {
   ExecCustomerRow,
 } from "../../services/statsService";
 import { getApiError } from "../../services/apiError";
-import { fmtCompactUSD, fmtInt, fmtUSD } from "../../utils/format";
+import { fmtCompactUSD, fmtDate, fmtInt, fmtUSD } from "../../utils/format";
 
 import ChartCard from "../../components/stats/ChartCard";
 import BarChart from "../../components/stats/BarChart";
@@ -91,6 +91,14 @@ export default function Home() {
   const displayFrom = range.from ?? data?.range.from ?? "";
   const displayTo = range.to ?? data?.range.to ?? "";
 
+  // Vista personal del vendedor: el panel muestra solo SUS cifras. El backend lo indica
+  // con `scope.type === "seller"`; aquí reetiquetamos los títulos y ocultamos los bloques
+  // de empresa (capital inmovilizado, alertas del sistema, inventario, reporte ejecutivo).
+  const personal = data?.scope?.type === "seller";
+  const sellerName = data?.scope?.seller_name;
+  // Reetiqueta un título según el ámbito ("Mejores clientes" → "Tus mejores clientes").
+  const tl = (company: string, mine: string) => (personal ? mine : company);
+
   return (
     <>
       <PageMeta title="Inicio" description="Panel de control ejecutivo de Inversiones Maescar C.A." />
@@ -117,17 +125,27 @@ export default function Home() {
             loading={loading}
           />
 
+          {personal && (
+            <div className="rounded-2xl border border-brand-200 bg-brand-50/60 px-4 py-3 text-sm text-brand-700 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300">
+              <span className="font-semibold">Vista personal{sellerName ? ` — ${sellerName}` : ""}.</span>{" "}
+              Este panel muestra solo tus resultados como vendedor, no los totales de la empresa.
+            </div>
+          )}
+
           <div className={loading ? "pointer-events-none opacity-60 transition" : "transition"}>
             <div className="space-y-4 md:space-y-6">
               <NarrativeBanner
                 sentences={data.narrative}
                 rangeLabel={`${data.range.from_label} – ${data.range.to_label}`}
                 action={
-                  <GenerateReportButton
-                    data={data}
-                    canForecast={hasRole(...CAN_VIEW_FORECASTS)}
-                    userName={user?.full_name || user?.username}
-                  />
+                  // El reporte ejecutivo es a nivel empresa; no se ofrece en la vista personal.
+                  personal ? undefined : (
+                    <GenerateReportButton
+                      data={data}
+                      canForecast={hasRole(...CAN_VIEW_FORECASTS)}
+                      userName={user?.full_name || user?.username}
+                    />
+                  )
                 }
               />
 
@@ -146,7 +164,7 @@ export default function Home() {
               {/* Tendencia de ingresos/utilidad + composición */}
               <div className="grid grid-cols-12 gap-4 md:gap-6">
                 <div className="col-span-12 xl:col-span-7">
-                  <ChartCard title="Ingresos y utilidad" subtitle="Evolución mensual dentro del rango">
+                  <ChartCard title={tl("Ingresos y utilidad", "Tus ingresos")} subtitle="Evolución mensual dentro del rango">
                     <BarChart
                       categories={data.monthly.map((m) => m.label)}
                       series={[
@@ -161,7 +179,7 @@ export default function Home() {
                   </ChartCard>
                 </div>
                 <div className="col-span-12 xl:col-span-5">
-                  <ChartCard title="Composición de ingresos" subtitle="Detal vs. institucional (rango)">
+                  <ChartCard title={tl("Composición de ingresos", "Tu composición de ingresos")} subtitle="Detal vs. institucional (rango)">
                     <DonutChart
                       labels={data.type_split.map((t) => t.label)}
                       series={data.type_split.map((t) => Math.round(t.revenue))}
@@ -177,7 +195,7 @@ export default function Home() {
                 <div className="col-span-12 xl:col-span-7">
                   <ChartCard
                     title="Detal vs. institucional"
-                    subtitle="Tendencia mensual de ingresos por segmento"
+                    subtitle={tl("Tendencia mensual de ingresos por segmento", "Tu tendencia mensual por segmento")}
                   >
                     <LineChart
                       categories={data.monthly_by_type.map((m) => m.label)}
@@ -196,7 +214,7 @@ export default function Home() {
                   </ChartCard>
                 </div>
                 <div className="col-span-12 xl:col-span-5">
-                  <ChartCard title="Ingresos por categoría" subtitle="Categorías más vendidas (rango)">
+                  <ChartCard title={tl("Ingresos por categoría", "Tus ingresos por categoría")} subtitle="Categorías más vendidas (rango)">
                     <BarChart
                       categories={data.revenue_by_category.map((c) => c.category)}
                       series={[{ name: "Ingresos", data: data.revenue_by_category.map((c) => Math.round(c.revenue)) }]}
@@ -208,44 +226,82 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Productos sin demanda + alertas tempranas */}
-              <div className="grid grid-cols-12 gap-4 md:gap-6">
-                <div className="col-span-12 xl:col-span-7">
-                  <ChartCard
-                    title="Productos sin demanda"
-                    subtitle={`${data.no_demand_count} producto(s) activos sin ventas en el rango — capital inmovilizado`}
-                  >
-                    <RankTable<NoDemandRow>
-                      rows={data.no_demand}
-                      empty="Todos los productos activos registraron ventas en el rango. 🎉"
-                      columns={[
-                        { key: "name", label: "Producto", render: (r) => <span className="font-medium">{r.name}</span> },
-                        { key: "category", label: "Categoría" },
-                        { key: "stock", label: "Stock", align: "right", render: (r) => fmtInt(r.stock) },
-                        {
-                          key: "retail_value",
-                          label: "Valor detenido",
-                          align: "right",
-                          render: (r) => fmtUSD(r.retail_value),
-                        },
-                      ]}
-                    />
-                  </ChartCard>
+              {personal ? (
+                /* Vendedor: sus clientes en riesgo de fuga + contexto cambiario. */
+                <div className="grid grid-cols-12 gap-4 md:gap-6">
+                  <div className="col-span-12 xl:col-span-7">
+                    <ChartCard title="Tus clientes en riesgo de fuga" subtitle="Sin comprarte en más de 6 meses">
+                      <RankTable<ExecCustomerRow>
+                        rows={data.at_risk}
+                        empty="Ninguno de tus clientes está en riesgo de fuga. 🎉"
+                        columns={[
+                          { key: "name", label: "Cliente", render: (r) => <span className="font-medium">{r.name}</span> },
+                          {
+                            key: "last_purchase",
+                            label: "Última compra",
+                            render: (r) => (r.last_purchase ? fmtDate(r.last_purchase) : "—"),
+                          },
+                          { key: "revenue", label: "Histórico", align: "right", render: (r) => fmtUSD(r.revenue) },
+                        ]}
+                      />
+                    </ChartCard>
+                  </div>
+                  <div className="col-span-12 xl:col-span-5">
+                    <ExchangeRateCard data={data.exchange_rate} />
+                  </div>
                 </div>
-                <div className="col-span-12 xl:col-span-5">
-                  <AlertsPanel
-                    alerts={data.alerts}
-                    atRisk={data.at_risk}
-                    noDemand={data.no_demand}
-                    noDemandCount={data.no_demand_count}
-                  />
-                </div>
-              </div>
+              ) : (
+                <>
+                  {/* Empresa: productos sin demanda + alertas tempranas */}
+                  <div className="grid grid-cols-12 gap-4 md:gap-6">
+                    <div className="col-span-12 xl:col-span-7">
+                      <ChartCard
+                        title="Productos sin demanda"
+                        subtitle={`${data.no_demand_count} producto(s) activos sin ventas en el rango — capital inmovilizado`}
+                      >
+                        <RankTable<NoDemandRow>
+                          rows={data.no_demand}
+                          empty="Todos los productos activos registraron ventas en el rango. 🎉"
+                          columns={[
+                            { key: "name", label: "Producto", render: (r) => <span className="font-medium">{r.name}</span> },
+                            { key: "category", label: "Categoría" },
+                            { key: "stock", label: "Stock", align: "right", render: (r) => fmtInt(r.stock) },
+                            {
+                              key: "retail_value",
+                              label: "Valor detenido",
+                              align: "right",
+                              render: (r) => fmtUSD(r.retail_value),
+                            },
+                          ]}
+                        />
+                      </ChartCard>
+                    </div>
+                    <div className="col-span-12 xl:col-span-5">
+                      <AlertsPanel
+                        alerts={data.alerts}
+                        atRisk={data.at_risk}
+                        noDemand={data.no_demand}
+                        noDemandCount={data.no_demand_count}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Inventario (snapshot) + contexto cambiario */}
+                  <div className="grid grid-cols-12 gap-4 md:gap-6">
+                    <div className="col-span-12 xl:col-span-5">
+                      <InventoryCard inv={data.inventory_health} />
+                    </div>
+                    <div className="col-span-12 xl:col-span-7">
+                      <ExchangeRateCard data={data.exchange_rate} />
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* Top productos + top clientes */}
               <div className="grid grid-cols-12 gap-4 md:gap-6">
                 <div className="col-span-12 xl:col-span-6">
-                  <ChartCard title="Productos más vendidos" subtitle="Por ingresos en el rango">
+                  <ChartCard title={tl("Productos más vendidos", "Tus productos más vendidos")} subtitle="Por ingresos en el rango">
                     <RankTable<ExecProductRow>
                       ranked
                       rows={data.top_products}
@@ -258,7 +314,7 @@ export default function Home() {
                   </ChartCard>
                 </div>
                 <div className="col-span-12 xl:col-span-6">
-                  <ChartCard title="Mejores clientes" subtitle="Por ingresos en el rango">
+                  <ChartCard title={tl("Mejores clientes", "Tus mejores clientes")} subtitle="Por ingresos en el rango">
                     <RankTable<ExecCustomerRow>
                       ranked
                       rows={data.top_customers}
@@ -272,16 +328,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Inventario (snapshot) + contexto cambiario */}
-              <div className="grid grid-cols-12 gap-4 md:gap-6">
-                <div className="col-span-12 xl:col-span-5">
-                  <InventoryCard inv={data.inventory_health} />
-                </div>
-                <div className="col-span-12 xl:col-span-7">
-                  <ExchangeRateCard data={data.exchange_rate} />
-                </div>
-              </div>
-
               {/* Posición competitiva (sensible) + distribución de clientes */}
               <div className="grid grid-cols-12 gap-4 md:gap-6">
                 {data.competitive && (
@@ -289,8 +335,11 @@ export default function Home() {
                     <CompetitivePanel data={data.competitive} />
                   </div>
                 )}
-                <div className={data.competitive ? "col-span-12 xl:col-span-6" : "col-span-12 xl:col-span-6"}>
-                  <CustomerLocationCard data={data.customers_by_state} subtitle="Top estados por nº de clientes" />
+                <div className={data.competitive ? "col-span-12 xl:col-span-6" : "col-span-12"}>
+                  <CustomerLocationCard
+                    data={data.customers_by_state}
+                    subtitle={tl("Top estados por nº de clientes", "Tus clientes por estado")}
+                  />
                 </div>
               </div>
 
@@ -300,7 +349,7 @@ export default function Home() {
               ) */}
 
               {/* Ventas recientes del rango */}
-              <RecentOrders sales={data.recent_sales} />
+              <RecentOrders sales={data.recent_sales} title={tl("Ventas recientes", "Tus ventas recientes")} />
             </div>
           </div>
         </div>

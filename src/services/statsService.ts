@@ -223,6 +223,13 @@ export interface ModelHealthRow {
   trained_at: string | null;
 }
 
+// Ámbito del panel: "company" (empresa) o "seller" (solo los números del vendedor).
+export interface DashboardScope {
+  type: "company" | "seller";
+  label: string;
+  seller_name: string | null;
+}
+
 export interface ExecutiveDashboard {
   range: {
     from: string;
@@ -233,6 +240,7 @@ export interface ExecutiveDashboard {
     data_from: string;
     data_to: string;
   };
+  scope?: DashboardScope;
   narrative: string[];
   kpis: ExecKpis;
   health_index?: HealthIndex | null;
