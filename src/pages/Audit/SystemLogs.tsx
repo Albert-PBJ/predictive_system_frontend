@@ -18,11 +18,17 @@ import {
   TableRow,
 } from "../../components/ui/table";
 import { useModal } from "../../hooks/useModal";
+import { useAuth } from "../../context/AuthContext";
 import { auditService, type AuditLog, type AuditMeta } from "../../services/auditService";
 import { getApiError } from "../../services/apiError";
 import { fmtDateTime, todayISO } from "../../utils/format";
 
 const PAGE_SIZE = 20;
+
+// Raíz del backend (fuera de /api) para enlazar al panel de administración de Django,
+// donde el admin crea y gestiona usuarios. Mismo patrón que context/ScraperContext.
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api";
+const DJANGO_ADMIN_USER_ADD_URL = `${API_BASE.replace(/\/api\/?$/, "")}/admin/auth/user/add/`;
 
 // Color del chip por categoría (para distinguir las áreas de un vistazo).
 function categoryColor(
@@ -53,6 +59,9 @@ function categoryColor(
 }
 
 export default function SystemLogs() {
+  const { hasRole } = useAuth();
+  const isAdmin = hasRole("ADMIN");
+
   const [meta, setMeta] = useState<AuditMeta | null>(null);
 
   const [category, setCategory] = useState("");
@@ -70,6 +79,10 @@ export default function SystemLogs() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+
+  // Respaldo completo de la base de datos en SQL (solo ADMIN).
+  const [backingUp, setBackingUp] = useState(false);
+  const [backupOk, setBackupOk] = useState(false);
 
   const [selected, setSelected] = useState<AuditLog | null>(null);
   const { isOpen, openModal, closeModal } = useModal();
@@ -161,6 +174,21 @@ export default function SystemLogs() {
       setError(getApiError(err, "No se pudo exportar el registro."));
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleBackup = async () => {
+    setBackingUp(true);
+    setBackupOk(false);
+    setError(null);
+    try {
+      await auditService.backupDatabase();
+      setBackupOk(true);
+      window.setTimeout(() => setBackupOk(false), 6000);
+    } catch (err) {
+      setError(getApiError(err, "No se pudo generar el respaldo de la base de datos."));
+    } finally {
+      setBackingUp(false);
     }
   };
 
@@ -274,7 +302,38 @@ export default function SystemLogs() {
           <Button variant="outline" size="sm" onClick={openPurge}>
             Purgar antiguos
           </Button>
+          {isAdmin && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleBackup}
+              disabled={backingUp}
+            >
+              {backingUp ? "Generando respaldo…" : "Respaldar base de datos (SQL)"}
+            </Button>
+          )}
+          {isAdmin && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                window.open(DJANGO_ADMIN_USER_ADD_URL, "_blank", "noopener,noreferrer")
+              }
+            >
+              Crear usuarios (Admin Django)
+            </Button>
+          )}
         </div>
+
+        {backupOk && (
+          <div className="mt-4">
+            <Alert
+              variant="success"
+              title="Respaldo generado"
+              message="La descarga del respaldo SQL de la base de datos ha comenzado."
+            />
+          </div>
+        )}
 
         {error && (
           <div className="mt-4">

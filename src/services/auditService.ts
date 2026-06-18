@@ -81,4 +81,51 @@ export const auditService = {
     const { data } = await api.post<{ deleted: number }>("/audit/logs/purge", { before });
     return data.deleted;
   },
+
+  // Descarga un respaldo COMPLETO de la base de datos en SQL (dispara la descarga en el
+  // navegador). Solo ADMIN (espejo de `IsAdmin` en el backend).
+  async backupDatabase(): Promise<void> {
+    let res;
+    try {
+      res = await api.get("/audit/backup", { responseType: "blob" });
+    } catch (err) {
+      // Con responseType "blob" un error de la API llega como Blob; lo convertimos a
+      // JSON para que `getApiError` pueda extraer el mensaje { error: "..." }.
+      throw await normalizeBlobError(err);
+    }
+
+    const blob = new Blob([res.data], { type: "application/sql" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download =
+      filenameFromDisposition(res.headers["content-disposition"]) ??
+      `maescar-respaldo-${new Date().toISOString().slice(0, 10)}.sql`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  },
 };
+
+// Extrae el `filename="..."` de una cabecera Content-Disposition, si viene.
+function filenameFromDisposition(disposition?: string): string | null {
+  if (!disposition) return null;
+  const match = /filename="?([^";]+)"?/i.exec(disposition);
+  return match ? match[1] : null;
+}
+
+// Reescribe el cuerpo Blob de un error de axios a JSON, para reutilizar `getApiError`.
+async function normalizeBlobError(err: unknown): Promise<unknown> {
+  const axiosErr = err as { response?: { data?: unknown } };
+  const data = axiosErr?.response?.data;
+  if (data instanceof Blob) {
+    try {
+      const text = await data.text();
+      axiosErr.response!.data = JSON.parse(text);
+    } catch {
+      /* no era JSON: se deja como estaba y `getApiError` usará el fallback */
+    }
+  }
+  return err;
+}

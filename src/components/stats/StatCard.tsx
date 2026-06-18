@@ -24,18 +24,20 @@ export default function StatCard({ label, value, icon, deltaPct, hint }: StatCar
           {icon}
         </div>
       )}
-      <div className={`flex items-end justify-between ${icon ? "mt-5" : ""}`}>
-        <div>
-          <span className="text-sm text-gray-500 dark:text-gray-400">{label}</span>
-          <h4 className="mt-2 text-title-sm font-bold text-gray-800 dark:text-white/90">{value}</h4>
-          {hint && <span className="mt-1 block text-xs text-gray-400">{hint}</span>}
+      <div className={icon ? "mt-5" : ""}>
+        <span className="text-sm text-gray-500 dark:text-gray-400">{label}</span>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <h4 className="text-title-sm font-bold text-gray-800 dark:text-white/90">{value}</h4>
+          {hasDelta && (
+            <span className="whitespace-nowrap">
+              <Badge color={up ? "success" : "error"}>
+                {up ? <ArrowUpIcon /> : <ArrowDownIcon />}
+                {fmtPct(Math.abs(deltaPct as number))}
+              </Badge>
+            </span>
+          )}
         </div>
-        {hasDelta && (
-          <Badge color={up ? "success" : "error"}>
-            {up ? <ArrowUpIcon /> : <ArrowDownIcon />}
-            {fmtPct(Math.abs(deltaPct as number))}
-          </Badge>
-        )}
+        {hint && <span className="mt-1 block text-xs text-gray-400">{hint}</span>}
       </div>
     </div>
   );
