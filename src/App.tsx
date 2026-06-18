@@ -3,7 +3,7 @@ import SignIn from "./pages/AuthPages/SignIn";
 import ForgotPassword from "./pages/AuthPages/ForgotPassword";
 import ResetPassword from "./pages/AuthPages/ResetPassword";
 import NotFound from "./pages/OtherPage/NotFound";
-import UserProfiles from "./pages/UserProfiles";
+import HelpPage from "./pages/Help/HelpPage";
 import Blank from "./pages/Blank";
 import AppLayout from "./layout/AppLayout";
 import { ScrollToTop } from "./components/common/ScrollToTop";
@@ -61,8 +61,8 @@ export default function App() {
               >
                 <Route index path="/" element={<Home />} />
 
-                {/* Others Page */}
-                <Route path="/profile" element={<UserProfiles />} />
+                {/* Ayuda — guía de uso para cualquier usuario autenticado */}
+                <Route path="/ayuda" element={<HelpPage />} />
                 <Route path="/blank" element={<Blank />} />
 
                 {/* Registrar venta — solo quien puede vender (no inventario) */}
