@@ -14,6 +14,7 @@ import {
   type SettingsMeta,
   type SystemSettingsData,
   type LatestRate,
+  type PriceBands,
 } from "../../services/settingsService";
 import { getApiError } from "../../services/apiError";
 
@@ -26,8 +27,15 @@ type BooleanKey =
   | "ocr_assume_usd_for_bare_number"
   | "discard_instagram_without_price";
 
-type EditableKey = keyof Omit<SystemSettingsData, "updated_at">;
+// El formulario plano maneja solo campos escalares. `price_bands` es anidado y se
+// gestiona en su propio estado (ver BandsForm).
+type EditableKey = keyof Omit<SystemSettingsData, "updated_at" | "price_bands">;
 type FormState = Record<EditableKey, string | boolean>;
+
+// Rangos de precio editables: como texto mientras se editan (los Input devuelven
+// string), se convierten a número al guardar.
+type BandForm = { min: string; max: string };
+type BandsForm = { categories: Record<string, BandForm>; default: BandForm };
 
 const RATE_BASIS_OPTIONS = [
   { value: "PAR", label: "Paralela" },
@@ -38,12 +46,28 @@ const RATE_BASIS_OPTIONS = [
 function toForm(data: SystemSettingsData): FormState {
   const out = {} as FormState;
   (Object.keys(data) as (keyof SystemSettingsData)[]).forEach((k) => {
-    if (k === "updated_at") return;
+    if (k === "updated_at" || k === "price_bands") return;
     const key = k as EditableKey;
     const value = data[k];
     out[key] = typeof value === "boolean" ? value : value == null ? "" : String(value);
   });
   return out;
+}
+
+function toBandsForm(pb: PriceBands): BandsForm {
+  const categories: Record<string, BandForm> = {};
+  Object.entries(pb.categories).forEach(([k, v]) => {
+    categories[k] = { min: String(v.min), max: String(v.max) };
+  });
+  return { categories, default: { min: String(pb.default.min), max: String(pb.default.max) } };
+}
+
+function fromBandsForm(bf: BandsForm): PriceBands {
+  const categories: Record<string, { min: number; max: number }> = {};
+  Object.entries(bf.categories).forEach(([k, v]) => {
+    categories[k] = { min: Number(v.min), max: Number(v.max) };
+  });
+  return { categories, default: { min: Number(bf.default.min), max: Number(bf.default.max) } };
 }
 
 // Pequeña fila de formulario: etiqueta + control + ayuda.
@@ -85,6 +109,7 @@ export default function SystemSettings() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
+  const [bands, setBands] = useState<BandsForm | null>(null);
   const [meta, setMeta] = useState<SettingsMeta | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
 
@@ -108,6 +133,7 @@ export default function SystemSettings() {
       .then((res) => {
         if (!active) return;
         setForm(toForm(res.settings));
+        setBands(toBandsForm(res.settings.price_bands));
         setMeta(res.meta);
         setUpdatedAt(res.settings.updated_at);
       })
@@ -121,13 +147,26 @@ export default function SystemSettings() {
   const set = (key: EditableKey, value: string | boolean) =>
     setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
 
+  const setBand = (cat: string, field: "min" | "max", value: string) =>
+    setBands((prev) => {
+      if (!prev) return prev;
+      if (cat === "default") return { ...prev, default: { ...prev.default, [field]: value } };
+      const current = prev.categories[cat] ?? { min: "", max: "" };
+      return { ...prev, categories: { ...prev.categories, [cat]: { ...current, [field]: value } } };
+    });
+
   const handleSave = async () => {
     if (!form) return;
     setSaving(true);
     setSaveMsg(null);
     try {
-      const res = await settingsService.update(form as never);
+      const patch = {
+        ...(form as Record<string, unknown>),
+        ...(bands ? { price_bands: fromBandsForm(bands) } : {}),
+      };
+      const res = await settingsService.update(patch as never);
       setForm(toForm(res.settings));
+      setBands(toBandsForm(res.settings.price_bands));
       setMeta(res.meta);
       setUpdatedAt(res.settings.updated_at);
       setSaveMsg({ ok: true, text: "Configuración guardada correctamente." });
@@ -414,6 +453,52 @@ export default function SystemSettings() {
             </Field>
           </div>
         </ComponentCard>
+
+        {/* ── Rangos de precio (validación de scrapers) ──────────────── */}
+        {bands ? (
+          <div className="xl:col-span-2">
+            <ComponentCard
+              title="Rangos de precio para validación (USD)"
+              desc="Un dato scrapeado cuyo precio (en USD) cae fuera del rango de su categoría se descarta. El rango «por defecto» aplica a los datos sin categoría reconocida."
+            >
+              <div className="space-y-2.5">
+                <div className="grid grid-cols-[1fr_6.5rem_6.5rem] gap-3 px-1 text-xs font-medium uppercase tracking-wide text-gray-400">
+                  <span>Categoría</span>
+                  <span>Mínimo</span>
+                  <span>Máximo</span>
+                </div>
+                {[
+                  ...(meta?.price_band_categories ?? Object.keys(bands.categories)).map((c) => ({
+                    key: c,
+                    label: c,
+                  })),
+                  { key: "default", label: "Sin categoría reconocida (por defecto)" },
+                ].map(({ key, label }) => {
+                  const b = key === "default" ? bands.default : bands.categories[key];
+                  return (
+                    <div key={key} className="grid grid-cols-[1fr_6.5rem_6.5rem] items-center gap-3">
+                      <span className="text-sm text-gray-700 dark:text-gray-300">{label}</span>
+                      <Input
+                        type="number"
+                        min="0"
+                        step={1}
+                        value={b?.min ?? ""}
+                        onChange={(e) => setBand(key, "min", e.target.value)}
+                      />
+                      <Input
+                        type="number"
+                        min="0"
+                        step={1}
+                        value={b?.max ?? ""}
+                        onChange={(e) => setBand(key, "max", e.target.value)}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </ComponentCard>
+          </div>
+        ) : null}
 
       </div>
 

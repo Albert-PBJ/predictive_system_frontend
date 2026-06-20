@@ -33,21 +33,11 @@ const EMPTY = {
   category: "",
   material: "",
   colors: "",
-  seat_length_cm: "",
-  seat_width_cm: "",
-  back_length_cm: "",
-  back_width_cm: "",
-  min_height_cm: "",
-  max_height_cm: "",
-  desk_length_cm: "",
-  desk_width_cm: "",
-  desk_height_cm: "",
   purchase_price_usd: "",
   sale_price_usd: "",
   min_stock: "0",
   is_manufactured: true,
   is_active: true,
-  image: "",
 };
 
 type FormState = typeof EMPTY;
@@ -61,21 +51,11 @@ function fromProduct(p: Product): FormState {
     category: p.category != null ? String(p.category) : "",
     material: s(p.material),
     colors: (p.colors ?? []).join(", "),
-    seat_length_cm: s(p.seat_length_cm),
-    seat_width_cm: s(p.seat_width_cm),
-    back_length_cm: s(p.back_length_cm),
-    back_width_cm: s(p.back_width_cm),
-    min_height_cm: s(p.min_height_cm),
-    max_height_cm: s(p.max_height_cm),
-    desk_length_cm: s(p.desk_length_cm),
-    desk_width_cm: s(p.desk_width_cm),
-    desk_height_cm: s(p.desk_height_cm),
     purchase_price_usd: s(p.purchase_price_usd),
     sale_price_usd: p.sale_price_usd ?? "",
     min_stock: String(p.min_stock ?? 0),
     is_manufactured: p.is_manufactured,
     is_active: p.is_active,
-    image: s(p.image),
   };
 }
 
@@ -134,20 +114,10 @@ export default function ProductFormModal({ isOpen, onClose, product, categories,
         .split(",")
         .map((c) => c.trim())
         .filter(Boolean),
-      seat_length_cm: nn(form.seat_length_cm),
-      seat_width_cm: nn(form.seat_width_cm),
-      back_length_cm: nn(form.back_length_cm),
-      back_width_cm: nn(form.back_width_cm),
-      min_height_cm: nn(form.min_height_cm),
-      max_height_cm: nn(form.max_height_cm),
-      desk_length_cm: nn(form.desk_length_cm),
-      desk_width_cm: nn(form.desk_width_cm),
-      desk_height_cm: nn(form.desk_height_cm),
       purchase_price_usd: nn(form.purchase_price_usd),
       sale_price_usd: form.sale_price_usd.trim(),
       min_stock: Math.max(0, Math.floor(Number(form.min_stock) || 0)),
       is_manufactured: form.is_manufactured,
-      image: form.image.trim() || null,
       is_active: form.is_active,
     };
 
@@ -271,32 +241,6 @@ export default function ProductFormModal({ isOpen, onClose, product, categories,
             )}
           </Section>
 
-          {/* Medidas */}
-          <Section title="Medidas (cm) — opcional">
-            <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">Sillas</p>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              {num("seat_length_cm", "Largo asiento")}
-              {num("seat_width_cm", "Ancho asiento")}
-              {num("back_length_cm", "Largo espaldar")}
-              {num("back_width_cm", "Ancho espaldar")}
-              {num("min_height_cm", "Altura mínima")}
-              {num("max_height_cm", "Altura máxima")}
-            </div>
-            <p className="mb-3 mt-5 text-xs text-gray-500 dark:text-gray-400">Escritorios / mesas</p>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              {num("desk_length_cm", "Largo")}
-              {num("desk_width_cm", "Ancho")}
-              {num("desk_height_cm", "Alto")}
-            </div>
-          </Section>
-
-          {/* Otros */}
-          <Section title="Otros">
-            <div>
-              <Label>Imagen (URL)</Label>
-              <Input value={form.image} onChange={(e) => set("image", e.target.value)} placeholder="https://…" />
-            </div>
-          </Section>
         </div>
 
         <div className="flex justify-end gap-3 border-t border-gray-100 px-6 py-4 dark:border-gray-800 sm:px-8">

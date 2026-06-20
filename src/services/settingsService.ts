@@ -5,6 +5,17 @@
 
 import { api } from "./api";
 
+// Rangos de precio (USD) para la validación de datos scrapeados. `default` aplica a
+// los registros cuya categoría no se reconoce.
+export interface PriceBand {
+  min: number;
+  max: number;
+}
+export interface PriceBands {
+  categories: Record<string, PriceBand>;
+  default: PriceBand;
+}
+
 // Configuración editable (espejo de SystemSettingsSerializer en el backend).
 export interface SystemSettingsData {
   // Tasa de cambio
@@ -27,6 +38,7 @@ export interface SystemSettingsData {
   // Scrapers
   discard_instagram_without_price: boolean;
   scraper_default_limit: number;
+  price_bands: PriceBands;
   // Valores por defecto de negocio
   default_iva_pct: string;
   default_quote_expiry_days: number;
@@ -54,6 +66,7 @@ export interface SettingsMeta {
   openai_installed: boolean;
   easyocr_installed: boolean;
   latest_rate: LatestRate | null;
+  price_band_categories: string[];
 }
 
 export interface SettingsResponse {

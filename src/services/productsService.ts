@@ -13,16 +13,6 @@ export interface Product {
   material: string | null;
   material_display: string | null;
   colors: string[];
-  // Medidas (cm) — opcionales
-  seat_length_cm: string | null;
-  seat_width_cm: string | null;
-  back_length_cm: string | null;
-  back_width_cm: string | null;
-  min_height_cm: string | null;
-  max_height_cm: string | null;
-  desk_length_cm: string | null;
-  desk_width_cm: string | null;
-  desk_height_cm: string | null;
   // Precios
   purchase_price_usd: string | null;
   sale_price_usd: string;
@@ -32,7 +22,6 @@ export interface Product {
   low_stock: boolean;
   // Metadatos
   is_manufactured: boolean;
-  image: string | null;
   is_active: boolean;
 }
 
@@ -44,20 +33,10 @@ export interface ProductInput {
   category: number | null;
   material: string | null;
   colors: string[];
-  seat_length_cm: string | null;
-  seat_width_cm: string | null;
-  back_length_cm: string | null;
-  back_width_cm: string | null;
-  min_height_cm: string | null;
-  max_height_cm: string | null;
-  desk_length_cm: string | null;
-  desk_width_cm: string | null;
-  desk_height_cm: string | null;
   purchase_price_usd: string | null;
   sale_price_usd: string;
   min_stock: number;
   is_manufactured: boolean;
-  image: string | null;
   is_active: boolean;
 }
 
