@@ -70,6 +70,9 @@ export interface QuoteListParams {
   customer?: number;
   date_from?: string;
   date_to?: string;
+  // Solo presupuestos vigentes que aún pueden convertirse en venta (no convertidos ni
+  // rechazados, sin vencer). Alimenta el buscador del formulario de venta.
+  convertible?: boolean;
   page?: number;
   page_size?: number;
 }
@@ -89,7 +92,25 @@ export const quotesService = {
     const { data } = await api.post<Quote>("/quotes/", payload);
     return data;
   },
+
+  // Convierte un presupuesto en venta real (descuenta inventario). Devuelve la venta
+  // generada y el presupuesto actualizado (estado CONVERTED + converted_to_sale).
+  async convertToSale(id: number, payload: ConvertQuotePayload = {}): Promise<ConvertQuoteResult> {
+    const { data } = await api.post<ConvertQuoteResult>(`/quotes/${id}/convertir/`, payload);
+    return data;
+  },
 };
+
+export interface ConvertQuotePayload {
+  sale_date?: string | null;
+  sale_type?: string;
+  seller?: number;
+}
+
+export interface ConvertQuoteResult {
+  sale: { id: number; total_sale_usd: string; total_with_iva_usd: string; customer_name: string };
+  quote: Quote;
+}
 
 // Estados al crear (deben coincidir con sales.Quote.StatusChoices, sin CONVERTED que
 // lo fija el sistema al convertir el presupuesto en venta).

@@ -20,6 +20,8 @@ export interface Sale {
   id: number;
   customer: number;
   customer_name: string;
+  customer_rif: string | null;
+  customer_address: string;
   seller: number;
   seller_name: string;
   sale_date: string;
@@ -32,12 +34,38 @@ export interface Sale {
   total_profit_usd: string;
   total_discount_usd: string;
   total_sale_ves: string | null;
+  // Desglose de IVA (la base imponible es total_sale_usd; el total a pagar, con IVA).
+  iva_rate: string;
+  iva_amount_usd: string;
+  total_with_iva_usd: string;
+  total_with_iva_ves: string | null;
   commission_usd: string;
   bcv_rate: string | null;
   parallel_rate: string | null;
+  // Facturación fiscal (opcional; se completa con la acción "Facturar").
+  invoice_number: string | null;
+  control_number: string | null;
+  invoice_date: string | null;
+  invoice_file_url: string | null;
+  is_invoiced: boolean;
+  // Instancias relacionadas del flujo (para navegar entre ellas).
+  source_quote: { id: number; quote_number: string } | null;
+  dispatch_orders: { id: number; order_number: string; status: string; status_display: string }[];
   notes: string;
   items: SaleItem[];
   created_at: string;
+}
+
+export interface InvoiceSuggestion {
+  invoice_number: string;
+  control_number: string;
+}
+
+export interface InvoicePayload {
+  invoice_number: string;
+  control_number: string;
+  invoice_date?: string | null;
+  file?: File | null;
 }
 
 export interface NewSaleItem {
@@ -54,6 +82,9 @@ export interface NewSale {
   sale_type?: string;
   status?: string;
   notes?: string;
+  iva_rate?: string | number;
+  // Presupuesto relacionado (opcional): enlaza la venta al presupuesto y lo marca convertido.
+  quote?: number;
   items: NewSaleItem[];
 }
 
@@ -95,6 +126,30 @@ export const salesService = {
   // Anula una venta (devuelve el stock). Solo gerente/admin. Nota la barra final.
   async voidSale(id: number): Promise<Sale> {
     const { data } = await api.post<Sale>(`/sales/${id}/anular/`);
+    return data;
+  },
+
+  // Siguiente número correlativo sugerido de factura y de control.
+  async nextInvoiceNumbers(): Promise<InvoiceSuggestion> {
+    const { data } = await api.get<InvoiceSuggestion>("/sales/siguiente-factura/");
+    return data;
+  },
+
+  // Factura una venta (datos fiscales + adjunto opcional). Va como multipart porque
+  // puede llevar el archivo de la factura (PDF/imagen). El `Content-Type` se fuerza a
+  // multipart: la instancia `api` trae "application/json" por defecto y, con ese
+  // encabezado, axios serializaría el FormData a JSON (el archivo llegaría como texto y
+  // el backend respondería "The submitted data was not a file"). Al ponerlo en
+  // multipart, axios deja el FormData intacto y el navegador añade el boundary.
+  async invoiceSale(id: number, payload: InvoicePayload): Promise<Sale> {
+    const fd = new FormData();
+    fd.append("invoice_number", payload.invoice_number);
+    fd.append("control_number", payload.control_number);
+    if (payload.invoice_date) fd.append("invoice_date", payload.invoice_date);
+    if (payload.file) fd.append("invoice_file", payload.file);
+    const { data } = await api.post<Sale>(`/sales/${id}/facturar/`, fd, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
     return data;
   },
 

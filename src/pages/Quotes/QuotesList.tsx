@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import ComponentCard from "../../components/common/ComponentCard";
@@ -43,6 +43,8 @@ function statusColor(status: string): "success" | "warning" | "error" | "info" |
 export default function QuotesList() {
   const { hasRole } = useAuth();
   const canCreate = hasRole(...CAN_REGISTER_SALES);
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -57,6 +59,9 @@ export default function QuotesList() {
 
   const [selected, setSelected] = useState<Quote | null>(null);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const [converting, setConverting] = useState(false);
+  const [convertMsg, setConvertMsg] = useState<string | null>(null);
+  const [convertError, setConvertError] = useState<string | null>(null);
   const { isOpen, openModal, closeModal } = useModal();
 
   useEffect(() => {
@@ -95,11 +100,57 @@ export default function QuotesList() {
 
   useEffect(() => load(), [load]);
 
+  // Deep-link: al llegar con ?quote=<id> (p. ej. desde una venta relacionada) abre
+  // directamente el detalle de ese presupuesto y limpia el parámetro.
+  useEffect(() => {
+    const id = searchParams.get("quote");
+    if (!id) return;
+    let active = true;
+    quotesService
+      .retrieve(Number(id))
+      .then((q) => {
+        if (!active) return;
+        setSelected(q);
+        setConvertMsg(null);
+        setConvertError(null);
+        openModal();
+        const next = new URLSearchParams(searchParams);
+        next.delete("quote");
+        setSearchParams(next, { replace: true });
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [searchParams, openModal, setSearchParams]);
+
   const numPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
 
   const openDetail = (q: Quote) => {
     setSelected(q);
+    setConvertMsg(null);
+    setConvertError(null);
     openModal();
+  };
+
+  const handleConvert = async () => {
+    if (!selected) return;
+    setConverting(true);
+    setConvertMsg(null);
+    setConvertError(null);
+    try {
+      const res = await quotesService.convertToSale(selected.id);
+      setSelected(res.quote); // refleja el estado "Convertido" + el enlace a la venta
+      setConvertMsg(
+        `Se generó la venta #${res.sale.id} por ${fmtUSD(res.sale.total_with_iva_usd)} (IVA incluido). ` +
+          `El inventario ya fue descontado.`,
+      );
+      load(); // refresca la lista para mostrar el nuevo estado
+    } catch (err) {
+      setConvertError(getApiError(err, "No se pudo convertir el presupuesto en venta."));
+    } finally {
+      setConverting(false);
+    }
   };
 
   const handleDownload = async (q: Quote) => {
@@ -315,11 +366,50 @@ export default function QuotesList() {
               </div>
             )}
 
-            <div className="mt-6 flex justify-end gap-3">
+            {selected.converted_to_sale && (
+              <div className="mt-4">
+                <Badge variant="light" color="success" size="sm">
+                  Convertido a la venta #{selected.converted_to_sale}
+                </Badge>
+              </div>
+            )}
+
+            {convertMsg && (
+              <div className="mt-4">
+                <Alert variant="success" title="Presupuesto convertido" message={convertMsg} />
+              </div>
+            )}
+            {convertError && (
+              <div className="mt-4">
+                <Alert variant="error" title="No se pudo convertir" message={convertError} />
+              </div>
+            )}
+
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
               <Button variant="outline" onClick={closeModal}>Cerrar</Button>
-              <Button onClick={() => handleDownload(selected)} disabled={downloadingId === selected.id}>
+              <Button
+                variant="outline"
+                onClick={() => handleDownload(selected)}
+                disabled={downloadingId === selected.id}
+              >
                 {downloadingId === selected.id ? "Generando PDF…" : "Descargar PDF"}
               </Button>
+              {selected.converted_to_sale && (
+                <Button
+                  variant="outline"
+                  onClick={() => navigate(`/ventas/historial?sale=${selected.converted_to_sale}`)}
+                >
+                  Ver venta #{selected.converted_to_sale}
+                </Button>
+              )}
+              {canCreate &&
+                selected.status !== "CON" &&
+                selected.status !== "REJ" &&
+                !selected.converted_to_sale && (
+                  <Button onClick={handleConvert} disabled={converting}>
+                    {converting ? "Convirtiendo…" : "Convertir a venta"}
+                  </Button>
+                )}
             </div>
           </div>
         )}

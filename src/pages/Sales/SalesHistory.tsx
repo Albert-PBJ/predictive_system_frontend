@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import ComponentCard from "../../components/common/ComponentCard";
@@ -27,7 +27,9 @@ import {
 } from "../../services/salesService";
 import { getApiError } from "../../services/apiError";
 import { fmtUSD, fmtVES, fmtDate } from "../../utils/format";
-import { CAN_REGISTER_SALES } from "../../services/types";
+import { CAN_REGISTER_SALES, OPERATIONAL_ROLES } from "../../services/types";
+import InvoiceModal from "../../components/sales/InvoiceModal";
+import DispatchOrderModal from "../../components/sales/DispatchOrderModal";
 
 const PAGE_SIZE = 10;
 
@@ -40,9 +42,17 @@ function statusColor(status: string): "success" | "warning" | "error" | "light" 
 
 export default function SalesHistory() {
   const { hasRole } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const canVoid = hasRole("ADMIN", "MANAGER");
   // El encargado de inventario ve las ventas, pero no las registra.
   const canRegisterSales = hasRole(...CAN_REGISTER_SALES);
+  // Facturar la requiere capacidad de vender; generar despacho, cualquier operativo.
+  const canInvoice = canRegisterSales;
+  const canDispatch = hasRole(...OPERATIONAL_ROLES);
+
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const [dispatchOpen, setDispatchOpen] = useState(false);
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -96,6 +106,29 @@ export default function SalesHistory() {
 
   useEffect(() => load(), [load]);
 
+  // Deep-link: al llegar con ?sale=<id> (desde un presupuesto o una orden de despacho
+  // relacionada) abre directamente el detalle de esa venta y limpia el parámetro.
+  useEffect(() => {
+    const id = searchParams.get("sale");
+    if (!id) return;
+    let active = true;
+    salesService
+      .retrieve(Number(id))
+      .then((s) => {
+        if (!active) return;
+        setSelected(s);
+        setActionError(null);
+        openModal();
+        const next = new URLSearchParams(searchParams);
+        next.delete("sale");
+        setSearchParams(next, { replace: true });
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [searchParams, openModal, setSearchParams]);
+
   const numPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
 
   const openDetail = (sale: Sale) => {
@@ -117,6 +150,11 @@ export default function SalesHistory() {
     } finally {
       setVoiding(false);
     }
+  };
+
+  const handleInvoiced = (updated: Sale) => {
+    setSelected(updated); // refleja los datos fiscales en el detalle abierto
+    load(); // refresca la lista (nº de factura en la tabla)
   };
 
   const clearFilters = () => {
@@ -300,12 +338,49 @@ export default function SalesHistory() {
               </Table>
             </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-5">
-              <Field label="Total (USD)" value={fmtUSD(selected.total_sale_usd)} />
-              <Field label="Total (VES)" value={fmtVES(selected.total_sale_ves)} />
-              <Field label="Descuento" value={fmtUSD(selected.total_discount_usd)} />
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+              <Field label="Base imponible" value={fmtUSD(selected.total_sale_usd)} />
+              <Field label={`IVA (${Number(selected.iva_rate)}%)`} value={fmtUSD(selected.iva_amount_usd)} />
+              <Field label="Total con IVA" value={fmtUSD(selected.total_with_iva_usd)} />
+              <Field label="Total con IVA (VES)" value={fmtVES(selected.total_with_iva_ves)} />
               <Field label="Utilidad" value={fmtUSD(selected.total_profit_usd)} />
               <Field label="Comisión" value={fmtUSD(selected.commission_usd)} />
+            </div>
+
+            {/* Facturación fiscal */}
+            <div className="mt-5 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-sm font-medium text-gray-800 dark:text-white/90">Facturación</p>
+                <Badge variant="light" color={selected.is_invoiced ? "success" : "warning"} size="sm">
+                  {selected.is_invoiced ? "Facturada" : "Sin factura"}
+                </Badge>
+              </div>
+              {selected.is_invoiced ? (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <Field label="N° factura" value={selected.invoice_number || "—"} />
+                  <Field label="N° control" value={selected.control_number || "—"} />
+                  <Field label="Fecha factura" value={fmtDate(selected.invoice_date)} />
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Adjunto</p>
+                    {selected.invoice_file_url ? (
+                      <a
+                        href={selected.invoice_file_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sm font-medium text-brand-500 hover:text-brand-600"
+                      >
+                        Ver archivo
+                      </a>
+                    ) : (
+                      <p className="text-sm text-gray-400">—</p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Esta venta aún no tiene factura fiscal asociada.
+                </p>
+              )}
             </div>
 
             {selected.notes && (
@@ -321,8 +396,34 @@ export default function SalesHistory() {
               </div>
             )}
 
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
               <Button variant="outline" onClick={closeModal}>Cerrar</Button>
+              {selected.source_quote && (
+                <Button
+                  variant="outline"
+                  onClick={() => navigate(`/ventas/presupuestos?quote=${selected.source_quote!.id}`)}
+                >
+                  Ver presupuesto {selected.source_quote.quote_number}
+                </Button>
+              )}
+              {selected.dispatch_orders.length > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={() => navigate(`/ventas/despachos?sale=${selected.id}`)}
+                >
+                  Ver despacho(s) ({selected.dispatch_orders.length})
+                </Button>
+              )}
+              {selected.status !== "ANU" && canDispatch && (
+                <Button variant="outline" onClick={() => setDispatchOpen(true)}>
+                  Generar orden de despacho
+                </Button>
+              )}
+              {selected.status !== "ANU" && canInvoice && (
+                <Button onClick={() => setInvoiceOpen(true)}>
+                  {selected.is_invoiced ? "Editar factura" : "Facturar"}
+                </Button>
+              )}
               {canVoid && selected.status !== "ANU" && (
                 <button
                   type="button"
@@ -337,6 +438,22 @@ export default function SalesHistory() {
           </div>
         )}
       </Modal>
+
+      {/* Facturar la venta seleccionada */}
+      <InvoiceModal
+        isOpen={invoiceOpen}
+        onClose={() => setInvoiceOpen(false)}
+        sale={selected}
+        onInvoiced={handleInvoiced}
+      />
+
+      {/* Generar orden de despacho de la venta seleccionada. El modal muestra su
+          propia pantalla de éxito (descargar PDF / ir al listado) y se cierra solo. */}
+      <DispatchOrderModal
+        isOpen={dispatchOpen}
+        onClose={() => setDispatchOpen(false)}
+        sale={selected}
+      />
     </>
   );
 }

@@ -16,6 +16,7 @@ import RegisterSale from "./pages/Sales/RegisterSale";
 import SalesHistory from "./pages/Sales/SalesHistory";
 import QuotesList from "./pages/Quotes/QuotesList";
 import CreateQuote from "./pages/Quotes/CreateQuote";
+import DispatchOrders from "./pages/Dispatch/DispatchOrders";
 import CustomersManage from "./pages/Customers/CustomersManage";
 import StockControl from "./pages/Inventory/StockControl";
 import ProductsCatalog from "./pages/Products/ProductsCatalog";
@@ -97,6 +98,15 @@ export default function App() {
                   element={
                     <ProtectedRoute roles={CAN_REGISTER_SALES}>
                       <CreateQuote />
+                    </ProtectedRoute>
+                  }
+                />
+                {/* Órdenes de despacho — operativo (crear, consultar, imprimir) */}
+                <Route
+                  path="/ventas/despachos"
+                  element={
+                    <ProtectedRoute roles={OPERATIONAL_ROLES}>
+                      <DispatchOrders />
                     </ProtectedRoute>
                   }
                 />

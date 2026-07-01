@@ -61,6 +61,8 @@ const navItems: NavItem[] = [
       { name: "Registrar venta", path: "/ventas/registrar", roles: CAN_REGISTER_SALES },
       { name: "Historial de ventas", path: "/ventas/historial" },
       { name: "Presupuestos", path: "/ventas/presupuestos", roles: CAN_REGISTER_SALES },
+      // Las órdenes de despacho las gestiona todo el personal operativo (incl. almacén).
+      { name: "Órdenes de despacho", path: "/ventas/despachos" },
       { name: "Clientes", path: "/ventas/clientes", roles: CAN_REGISTER_SALES },
     ],
   },

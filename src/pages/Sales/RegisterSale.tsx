@@ -20,8 +20,13 @@ import {
 import { TrashBinIcon } from "../../icons";
 import CustomerPicker from "../../components/sales/CustomerPicker";
 import ProductPicker from "../../components/sales/ProductPicker";
-import type { Customer } from "../../services/customersService";
-import { isService, type Product } from "../../services/productsService";
+import QuotePicker from "../../components/sales/QuotePicker";
+import InvoiceModal from "../../components/sales/InvoiceModal";
+import DispatchOrderModal from "../../components/sales/DispatchOrderModal";
+import Spinner from "../../components/common/Spinner";
+import { customersService, type Customer } from "../../services/customersService";
+import { isService, productsService, type Product } from "../../services/productsService";
+import type { Quote } from "../../services/quotesService";
 import {
   salesService,
   SALE_TYPES,
@@ -61,9 +66,91 @@ export default function RegisterSale() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Sale | null>(null);
 
+  // Presupuesto relacionado (opcional): al importarlo se precarga el cliente + líneas
+  // y, al guardar, la venta queda enlazada al presupuesto (marcándolo convertido).
+  const [linkedQuote, setLinkedQuote] = useState<Quote | null>(null);
+  const [importing, setImporting] = useState(false);
+
+  // Facturar / despachar la venta recién registrada, sin salir de la pantalla de éxito.
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const [dispatchOpen, setDispatchOpen] = useState(false);
+
+  // Facturación fiscal OPCIONAL dentro del propio formulario (antes de registrar):
+  // si se marca, la venta se registra y se factura en un solo paso.
+  const [addInvoiceNow, setAddInvoiceNow] = useState(false);
+  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [controlNumber, setControlNumber] = useState("");
+  const [invoiceDate, setInvoiceDate] = useState("");
+  const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
+  const [invoiceWarning, setInvoiceWarning] = useState<string | null>(null);
+
+  const ivaPct = linkedQuote ? Number(linkedQuote.iva_rate) : 16;
+
+  // Al activar "Registrar la factura ahora", precarga la fecha y sugiere el correlativo.
+  const toggleInvoiceNow = (checked: boolean) => {
+    setAddInvoiceNow(checked);
+    if (!checked) return;
+    if (!invoiceDate) setInvoiceDate(saleDate);
+    if (!invoiceNumber && !controlNumber) {
+      salesService
+        .nextInvoiceNumbers()
+        .then((s) => {
+          setInvoiceNumber((v) => v || s.invoice_number);
+          setControlNumber((v) => v || s.control_number);
+        })
+        .catch(() => {
+          /* la sugerencia es best-effort: se pueden escribir a mano */
+        });
+    }
+  };
+
   useEffect(() => {
     salesService.getLatestRate().then(setRate);
   }, []);
+
+  // Importa un presupuesto vigente al formulario: precarga cliente y líneas (con el
+  // precio cotizado, expresado como descuento sobre el precio de lista actual, o como
+  // precio directo para servicios). La venta se enviará enlazada a este presupuesto.
+  const importQuote = async (q: Quote) => {
+    setImporting(true);
+    setError(null);
+    try {
+      const [cust, products] = await Promise.all([
+        customersService.get(q.customer),
+        Promise.all(q.items.map((it) => productsService.get(it.product))),
+      ]);
+      const newLines: Line[] = q.items.map((it, idx) => {
+        const product = products[idx];
+        const quoted = Number(it.unit_price_usd) || 0;
+        if (isService(product)) {
+          return { product, quantity: it.quantity, discountPct: "0", unitPrice: String(quoted) };
+        }
+        const list = Number(product.sale_price_usd) || 0;
+        const disc = list > 0 ? Math.max(0, Math.min(100, (1 - quoted / list) * 100)) : 0;
+        return {
+          product,
+          quantity: it.quantity,
+          discountPct: String(Math.round(disc * 100) / 100),
+          unitPrice: "",
+        };
+      });
+      setCustomer(cust);
+      setLines(newLines);
+      setSaleType("INST"); // los presupuestos suelen ser de proyecto/institucional
+      setLinkedQuote(q);
+    } catch (err) {
+      setError(getApiError(err, "No se pudo cargar el presupuesto."));
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  // Cambio manual de cliente: si difiere del presupuesto enlazado, se desvincula (la
+  // venta debe ser del mismo cliente que el presupuesto).
+  const handleCustomerChange = (c: Customer | null) => {
+    setCustomer(c);
+    if (linkedQuote && (!c || c.id !== linkedQuote.customer)) setLinkedQuote(null);
+  };
 
   // ── Manejo de líneas ──
   const addProduct = (p: Product) => {
@@ -139,7 +226,15 @@ export default function RegisterSale() {
       setError("Agrega al menos un producto.");
       return;
     }
+    if (addInvoiceNow && (!invoiceNumber.trim() || !controlNumber.trim())) {
+      setError(
+        "Para facturar ahora, ingresa el N° de factura y el N° de control " +
+          "(o desmarca «Registrar la factura ahora»).",
+      );
+      return;
+    }
     setError(null);
+    setInvoiceWarning(null);
     setSubmitting(true);
     const payload: NewSale = {
       customer: customer.id,
@@ -147,6 +242,8 @@ export default function RegisterSale() {
       sale_type: saleType,
       status,
       notes: notes.trim(),
+      // Relaciona la venta con el presupuesto y hereda su IVA.
+      ...(linkedQuote ? { quote: linkedQuote.id, iva_rate: linkedQuote.iva_rate } : {}),
       items: lines.map((l) =>
         isService(l.product)
           ? {
@@ -164,7 +261,28 @@ export default function RegisterSale() {
     };
     try {
       const sale = await salesService.create(payload);
-      setResult(sale);
+      // Si se pidió facturar en el mismo paso, se factura la venta recién creada. Si
+      // esto falla (p. ej. número duplicado), la venta ya quedó registrada: se muestra
+      // sin factura con un aviso, y se puede reintentar con «Facturar».
+      if (addInvoiceNow) {
+        try {
+          const invoiced = await salesService.invoiceSale(sale.id, {
+            invoice_number: invoiceNumber.trim(),
+            control_number: controlNumber.trim(),
+            invoice_date: invoiceDate || null,
+            file: invoiceFile,
+          });
+          setResult(invoiced);
+        } catch (err) {
+          setResult(sale);
+          setInvoiceWarning(
+            getApiError(err, "La venta se registró, pero no se pudo facturar.") +
+              " Puedes reintentar con «Facturar».",
+          );
+        }
+      } else {
+        setResult(sale);
+      }
     } catch (err) {
       setError(getApiError(err, "No se pudo registrar la venta."));
     } finally {
@@ -179,6 +297,13 @@ export default function RegisterSale() {
     setStatus("COMP");
     setNotes("");
     setLines([]);
+    setLinkedQuote(null);
+    setAddInvoiceNow(false);
+    setInvoiceNumber("");
+    setControlNumber("");
+    setInvoiceDate("");
+    setInvoiceFile(null);
+    setInvoiceWarning(null);
     setError(null);
     setResult(null);
   };
@@ -193,22 +318,61 @@ export default function RegisterSale() {
           <Alert
             variant="success"
             title="Venta registrada correctamente"
-            message={`Se descontó el inventario y se registró la venta a ${result.customer_name}.`}
+            message={
+              `Se descontó el inventario y se registró la venta a ${result.customer_name}.` +
+              (linkedQuote ? ` Se relacionó con el presupuesto ${linkedQuote.quote_number} (marcado como convertido).` : "")
+            }
           />
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-            <Summary label="Total (USD)" value={fmtUSD(result.total_sale_usd)} />
-            <Summary label="Total (VES)" value={fmtVES(result.total_sale_ves)} />
-            <Summary label="Descuento (USD)" value={fmtUSD(result.total_discount_usd)} />
+          {invoiceWarning && (
+            <Alert variant="warning" title="Factura pendiente" message={invoiceWarning} />
+          )}
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6">
+            <Summary label="Base imponible" value={fmtUSD(result.total_sale_usd)} />
+            <Summary label={`IVA (${Number(result.iva_rate)}%)`} value={fmtUSD(result.iva_amount_usd)} />
+            <Summary label="Total con IVA (USD)" value={fmtUSD(result.total_with_iva_usd)} />
+            <Summary label="Total con IVA (VES)" value={fmtVES(result.total_with_iva_ves)} />
             <Summary label="Utilidad (USD)" value={fmtUSD(result.total_profit_usd)} />
             <Summary label="Comisión (USD)" value={fmtUSD(result.commission_usd)} />
           </div>
+          {result.is_invoiced ? (
+            <p className="text-xs text-gray-600 dark:text-gray-300">
+              Facturada: N° {result.invoice_number} · control {result.control_number}. También puedes
+              generar su orden de despacho.
+            </p>
+          ) : (
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              La venta se registró <strong>sin factura</strong>. Puedes facturarla ahora con «Facturar»
+              (o más tarde desde el historial de ventas), y generar su orden de despacho.
+            </p>
+          )}
           <div className="flex flex-wrap gap-3">
-            <Button onClick={resetForm}>Registrar otra venta</Button>
+            <Button onClick={() => setInvoiceOpen(true)}>
+              {result.is_invoiced ? "Editar factura" : "Facturar"}
+            </Button>
+            <Button variant="outline" onClick={() => setDispatchOpen(true)}>
+              Generar orden de despacho
+            </Button>
+            <Button variant="outline" onClick={resetForm}>Registrar otra venta</Button>
             <Link to="/ventas/historial">
               <Button variant="outline">Ver historial de ventas</Button>
             </Link>
           </div>
         </ComponentCard>
+
+        {/* Facturar la venta recién registrada */}
+        <InvoiceModal
+          isOpen={invoiceOpen}
+          onClose={() => setInvoiceOpen(false)}
+          sale={result}
+          onInvoiced={(updated) => setResult(updated)}
+        />
+
+        {/* Generar su orden de despacho (el modal maneja su propia pantalla de éxito) */}
+        <DispatchOrderModal
+          isOpen={dispatchOpen}
+          onClose={() => setDispatchOpen(false)}
+          sale={result}
+        />
       </>
     );
   }
@@ -230,8 +394,40 @@ export default function RegisterSale() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         {/* ── Cliente y datos de la venta ── */}
         <div className="space-y-6 xl:col-span-2">
+          <ComponentCard title="Presupuesto relacionado (opcional)">
+            {linkedQuote ? (
+              <div className="flex items-start justify-between gap-3 rounded-lg border border-brand-200 bg-brand-50/40 p-4 dark:border-brand-500/30 dark:bg-brand-500/10">
+                <div>
+                  <p className="text-sm font-medium text-gray-800 dark:text-white/90">
+                    Presupuesto {linkedQuote.quote_number}
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {linkedQuote.customer_name} · {fmtUSD(linkedQuote.total_usd)} · IVA {Number(linkedQuote.iva_rate)}%
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Al registrar la venta, el presupuesto quedará marcado como convertido y enlazado a ella.
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => setLinkedQuote(null)} disabled={submitting}>
+                  Quitar
+                </Button>
+              </div>
+            ) : importing ? (
+              <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+                <Spinner /> Cargando presupuesto…
+              </div>
+            ) : (
+              <>
+                <QuotePicker onSelect={importQuote} disabled={submitting} />
+                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  Busca un presupuesto vigente para precargar el cliente y los productos, y relacionarlo con la venta.
+                </p>
+              </>
+            )}
+          </ComponentCard>
+
           <ComponentCard title="Cliente">
-            <CustomerPicker value={customer} onChange={setCustomer} disabled={submitting} />
+            <CustomerPicker value={customer} onChange={handleCustomerChange} disabled={submitting} />
           </ComponentCard>
 
           <ComponentCard title="Productos">
@@ -371,6 +567,70 @@ export default function RegisterSale() {
               <Label>Notas</Label>
               <TextArea rows={3} value={notes} onChange={setNotes} placeholder="Observaciones (opcional)" />
             </div>
+          </ComponentCard>
+
+          <ComponentCard title="Facturación fiscal (opcional)">
+            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <input
+                type="checkbox"
+                checked={addInvoiceNow}
+                onChange={(e) => toggleInvoiceNow(e.target.checked)}
+                disabled={submitting}
+                className="size-4 rounded border-gray-300"
+              />
+              Registrar la factura ahora
+            </label>
+
+            {addInvoiceNow ? (
+              <div className="mt-4 space-y-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <Label>N° de factura fiscal</Label>
+                    <Input
+                      value={invoiceNumber}
+                      onChange={(e) => setInvoiceNumber(e.target.value)}
+                      placeholder="00000123"
+                      disabled={submitting}
+                    />
+                  </div>
+                  <div>
+                    <Label>N° de control (SENIAT)</Label>
+                    <Input
+                      value={controlNumber}
+                      onChange={(e) => setControlNumber(e.target.value)}
+                      placeholder="00000123"
+                      disabled={submitting}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label>Fecha de emisión</Label>
+                  <Input
+                    type="date"
+                    value={invoiceDate}
+                    onChange={(e) => setInvoiceDate(e.target.value)}
+                    disabled={submitting}
+                  />
+                </div>
+                <div>
+                  <Label>Adjunto de la factura (PDF o imagen, opcional)</Label>
+                  <input
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg,.webp"
+                    onChange={(e) => setInvoiceFile(e.target.files?.[0] ?? null)}
+                    disabled={submitting}
+                    className="w-full text-sm text-gray-500 file:mr-4 file:rounded-lg file:border-0 file:bg-brand-50 file:px-4 file:py-2.5 file:text-sm file:font-medium file:text-brand-600 hover:file:bg-brand-100 dark:text-gray-400 dark:file:bg-brand-500/10 dark:file:text-brand-400"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  El IVA ({ivaPct}%) se calcula automáticamente sobre la base imponible.
+                </p>
+              </div>
+            ) : (
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                Si no la marcas, la venta se registra sin factura y podrás facturarla después.
+              </p>
+            )}
           </ComponentCard>
 
           <ComponentCard title="Resumen">
