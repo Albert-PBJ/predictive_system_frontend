@@ -103,7 +103,11 @@ export default function NotificationDropdown() {
                     <span className="font-medium text-gray-800 dark:text-white/90">
                       {SCRAPER_META[n.source].label}
                     </span>
-                    <span> — recolección de datos completada</span>
+                    <span>
+                      {n.stopped
+                        ? " — recolección detenida (se guardó lo procesado)"
+                        : " — recolección de datos completada"}
+                    </span>
                   </span>
                   <span className="flex items-center gap-2 text-gray-500 text-theme-xs dark:text-gray-400">
                     <span>{n.saved} registro(s) guardados</span>
