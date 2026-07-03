@@ -220,7 +220,7 @@ export default function ProductFormModal({ isOpen, onClose, product, categories,
           {/* Precios e inventario */}
           <Section title="Precios e inventario (USD)">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              {num("purchase_price_usd", "Precio de compra")}
+              {num("purchase_price_usd", "Costo de fabricación/compra")}
               <div>
                 <Label>Precio de venta *</Label>
                 <Input
