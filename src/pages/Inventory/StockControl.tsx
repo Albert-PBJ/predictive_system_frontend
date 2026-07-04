@@ -18,6 +18,7 @@ import {
 } from "../../components/ui/table";
 import { BoxIconLine, PlusIcon } from "../../icons";
 import MovementModal, { type PickedProduct } from "../../components/inventory/MovementModal";
+import ImpexBar from "../../components/impex/ImpexBar";
 import {
   inventoryService,
   ALL_MOVEMENT_TYPES,
@@ -189,6 +190,15 @@ export default function StockControl() {
       <PageMeta title="Control de stock" description="Inventario y movimientos de productos" />
       <PageBreadcrumb pageTitle="Control de stock" />
 
+      <div className="mb-4 flex justify-end">
+        <ImpexBar
+          entity="inventory"
+          label="movimientos de inventario"
+          canImport={canManageStock}
+          onImported={() => setReloadToken((t) => t + 1)}
+        />
+      </div>
+
       {/* Tarjetas resumen */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <SummaryCard label="Productos" value={`${totalCount}`} icon={<BoxIconLine className="text-gray-700 size-6 dark:text-gray-300" />} />
@@ -273,7 +283,7 @@ export default function StockControl() {
           <Table>
             <TableHeader className="border-b border-gray-100 dark:border-gray-800">
               <TableRow>
-                {["SKU", "Producto", "Categoría", "Stock", "Mínimo", "Estado", "Precio venta", ...(canManageStock ? [""] : [])].map((h, i) => (
+                {["SKU", "Producto", "Categoría", "Stock", "Mínimo", "Estado", "Costo prom.", "Precio venta", ...(canManageStock ? [""] : [])].map((h, i) => (
                   <TableCell key={h || `acc-${i}`} isHeader className="px-4 py-3 text-left text-theme-xs font-medium text-gray-500 dark:text-gray-400">
                     {h}
                   </TableCell>
@@ -312,6 +322,9 @@ export default function StockControl() {
                         {p.stock <= 0 ? "Sin stock" : p.low_stock ? "Stock bajo" : "Disponible"}
                       </Badge>
                     </TableCell>
+                    <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                      {p.average_cost_usd ? fmtUSD(p.average_cost_usd) : "—"}
+                    </TableCell>
                     <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{fmtUSD(p.sale_price_usd)}</TableCell>
                     {canManageStock && (
                       <TableCell className="px-4 py-3">
@@ -347,7 +360,7 @@ export default function StockControl() {
             <Table>
               <TableHeader className="border-b border-gray-100 dark:border-gray-800">
                 <TableRow>
-                  {["Fecha", "Producto", "Tipo", "Cantidad", "Referencia", "Responsable"].map((h) => (
+                  {["Fecha", "Producto", "Tipo", "Cantidad", "Costo/u", "Referencia", "Responsable"].map((h) => (
                     <TableCell key={h} isHeader className="px-4 py-3 text-left text-theme-xs font-medium text-gray-500 dark:text-gray-400">
                       {h}
                     </TableCell>
@@ -384,6 +397,9 @@ export default function StockControl() {
                       </TableCell>
                       <TableCell className={`px-4 py-3 text-sm font-semibold ${m.quantity < 0 ? "text-error-500" : "text-success-600"}`}>
                         {m.quantity > 0 ? `+${m.quantity}` : m.quantity}
+                      </TableCell>
+                      <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                        {m.unit_cost_usd ? fmtUSD(m.unit_cost_usd) : "—"}
                       </TableCell>
                       <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{m.reference || "—"}</TableCell>
                       <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{m.responsible_name ?? "—"}</TableCell>

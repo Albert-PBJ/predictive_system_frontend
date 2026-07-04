@@ -236,7 +236,12 @@ export default function ProductFormModal({ isOpen, onClose, product, categories,
             {isEdit && (
               <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
                 Stock actual: <span className="font-semibold text-gray-700 dark:text-gray-300">{product!.stock}</span>
-                {" "}· el stock no se edita aquí; ajústalo desde <span className="font-medium">Inventario</span>.
+                {" "}· Costo promedio ponderado:{" "}
+                <span className="font-semibold text-gray-700 dark:text-gray-300">
+                  {product!.average_cost_usd ? `$${product!.average_cost_usd}` : "—"}
+                </span>
+                {" "}· ni el stock ni el costo promedio se editan aquí; se ajustan desde{" "}
+                <span className="font-medium">Inventario</span> (el promedio se recalcula con cada entrada).
               </p>
             )}
           </Section>

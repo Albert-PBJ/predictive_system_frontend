@@ -20,6 +20,7 @@ import {
 } from "../../components/ui/table";
 import { useModal } from "../../hooks/useModal";
 import { useAuth } from "../../context/AuthContext";
+import ImpexBar from "../../components/impex/ImpexBar";
 import {
   salesService,
   SALE_STATUS_FILTERS,
@@ -170,6 +171,10 @@ export default function SalesHistory() {
     <>
       <PageMeta title="Historial de ventas" description="Listado de ventas registradas" />
       <PageBreadcrumb pageTitle="Historial de ventas" />
+
+      <div className="mb-4 flex justify-end">
+        <ImpexBar entity="sales" label="ventas" canImport={canRegisterSales} onImported={load} />
+      </div>
 
       <ComponentCard title="Ventas registradas">
         {/* Filtros */}

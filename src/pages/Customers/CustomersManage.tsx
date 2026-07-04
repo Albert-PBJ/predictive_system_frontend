@@ -25,6 +25,9 @@ import {
   type CustomerInput,
 } from "../../services/customersService";
 import { getApiError } from "../../services/apiError";
+import { useAuth } from "../../context/AuthContext";
+import { CAN_REGISTER_SALES } from "../../services/types";
+import ImpexBar from "../../components/impex/ImpexBar";
 
 const PAGE_SIZE = 10;
 
@@ -57,6 +60,8 @@ function toInput(c: Customer): CustomerInput {
 }
 
 export default function CustomersManage() {
+  const { hasRole } = useAuth();
+  const canManage = hasRole(...CAN_REGISTER_SALES);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
@@ -146,6 +151,15 @@ export default function CustomersManage() {
     <>
       <PageMeta title="Clientes" description="Gestión de clientes: alta, edición y estado" />
       <PageBreadcrumb pageTitle="Clientes" />
+
+      <div className="mb-4 flex justify-end">
+        <ImpexBar
+          entity="customers"
+          label="clientes"
+          canImport={canManage}
+          onImported={() => setReloadToken((t) => t + 1)}
+        />
+      </div>
 
       <ComponentCard title="Clientes">
         {/* Filtros */}

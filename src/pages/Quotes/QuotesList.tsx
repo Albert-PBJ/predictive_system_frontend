@@ -20,6 +20,7 @@ import {
 } from "../../components/ui/table";
 import { useModal } from "../../hooks/useModal";
 import { useAuth } from "../../context/AuthContext";
+import ImpexBar from "../../components/impex/ImpexBar";
 import { downloadQuotePdf } from "../../components/quotes/downloadQuote";
 import {
   quotesService,
@@ -174,6 +175,10 @@ export default function QuotesList() {
     <>
       <PageMeta title="Presupuestos" description="Listado y creación de presupuestos" />
       <PageBreadcrumb pageTitle="Presupuestos" />
+
+      <div className="mb-4 flex justify-end">
+        <ImpexBar entity="quotes" label="presupuestos" canImport={canCreate} onImported={load} />
+      </div>
 
       <ComponentCard title="Presupuestos">
         {/* Filtros */}

@@ -36,6 +36,7 @@ export default function MovementModal({ isOpen, onClose, product, onSaved }: Pro
   const [type, setType] = useState("ENT");
   const [direction, setDirection] = useState<"inc" | "dec">("dec"); // solo para AJU
   const [quantity, setQuantity] = useState("1");
+  const [unitCost, setUnitCost] = useState(""); // costo unitario de compra (solo ENT)
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
   const [date, setDate] = useState(todayISO());
@@ -49,6 +50,7 @@ export default function MovementModal({ isOpen, onClose, product, onSaved }: Pro
       setType("ENT");
       setDirection("dec");
       setQuantity("1");
+      setUnitCost("");
       setReference("");
       setNotes("");
       setDate(todayISO());
@@ -76,10 +78,23 @@ export default function MovementModal({ isOpen, onClose, product, onSaved }: Pro
       return;
     }
 
+    // El costo unitario solo aplica a una entrada (compra): recalcula el promedio
+    // ponderado. Es opcional; si se indica debe ser un número no negativo.
+    let unitCostOut: string | undefined;
+    if (type === "ENT" && unitCost.trim()) {
+      const c = Number(unitCost);
+      if (!Number.isFinite(c) || c < 0) {
+        setError("El costo unitario debe ser un número mayor o igual a cero.");
+        return;
+      }
+      unitCostOut = unitCost.trim();
+    }
+
     const payload: NewMovement = {
       product: picked.id,
       movement_type: type,
       quantity: signed,
+      unit_cost: unitCostOut,
       reference: reference.trim(),
       notes: notes.trim(),
       movement_date: date,
@@ -155,6 +170,25 @@ export default function MovementModal({ isOpen, onClose, product, onSaved }: Pro
               />
             </div>
           </div>
+
+          {type === "ENT" && (
+            <div>
+              <Label>Costo unitario de compra/fabricación (USD)</Label>
+              <Input
+                type="number"
+                min="0"
+                step={0.01}
+                value={unitCost}
+                onChange={(e) => setUnitCost(e.target.value)}
+                placeholder="Ej: 120.00 (opcional)"
+              />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Precio pagado por unidad en esta compra. Si lo indicas, se recalcula el
+                <span className="font-medium"> costo promedio ponderado</span> del producto
+                (base del costo de venta). Déjalo vacío para conservar el promedio actual.
+              </p>
+            </div>
+          )}
 
           {isAdjustment && (
             <div>

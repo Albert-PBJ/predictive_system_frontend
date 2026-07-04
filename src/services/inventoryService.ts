@@ -13,6 +13,7 @@ export interface StockRow {
   low_stock: boolean;
   sale_price_usd: string;
   purchase_price_usd: string | null;
+  average_cost_usd: string | null; // costo promedio ponderado móvil (CMV)
   is_active: boolean;
 }
 
@@ -30,6 +31,7 @@ export interface Movement {
   movement_type: string;
   movement_type_display: string;
   quantity: number;
+  unit_cost_usd: string | null; // costo unitario (compra en entradas; CMV en salidas)
   sale: number | null;
   reference: string;
   responsible: number | null;
@@ -44,6 +46,7 @@ export interface NewMovement {
   product: number;
   movement_type: string;
   quantity: number; // delta con signo: positivo suma, negativo resta (solo AJU)
+  unit_cost?: string; // costo unitario de compra (USD): en una entrada recalcula el promedio ponderado
   reference?: string;
   notes?: string;
   movement_date?: string;

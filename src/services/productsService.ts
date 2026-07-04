@@ -15,6 +15,7 @@ export interface Product {
   colors: string[];
   // Precios
   purchase_price_usd: string | null;
+  average_cost_usd: string | null; // costo promedio ponderado móvil (solo lectura; lo mantiene Inventario)
   sale_price_usd: string;
   // Inventario
   stock: number;
