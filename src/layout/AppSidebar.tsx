@@ -121,6 +121,7 @@ const navItems: NavItem[] = [
       { name: SCRAPER_META.instagram.label, path: SCRAPER_META.instagram.path },
       { name: SCRAPER_META.mercadolibre.label, path: SCRAPER_META.mercadolibre.path },
       { name: SCRAPER_META.website.label, path: SCRAPER_META.website.path },
+      { name: "Programación", path: "/datos-externos/programacion" },
     ],
   },
   {

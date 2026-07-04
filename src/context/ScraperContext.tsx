@@ -55,6 +55,8 @@ interface ScrapeParams {
   urls: string[];
   limit: number;
   competitorName?: string;
+  // Si la corrida la dispara una programación automática, su id (para la auditoría).
+  scheduleId?: number;
 }
 
 export interface ScraperJob {
@@ -367,6 +369,7 @@ export function ScraperProvider({ children }: { children: ReactNode }) {
           urls: params.urls,
           limit: params.limit,
           competitor_name: params.competitorName || null,
+          scheduled_schedule_id: params.scheduleId ?? null,
         });
         runId = data.run_id;
         datasetId = data.dataset_id;

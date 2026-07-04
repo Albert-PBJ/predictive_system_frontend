@@ -12,6 +12,8 @@ import { AuthProvider } from "./context/AuthContext";
 import { ScraperProvider } from "./context/ScraperContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import ScraperPage from "./pages/ExternalData/ScraperPage";
+import ScraperSchedules from "./pages/ExternalData/ScraperSchedules";
+import ScraperScheduleRunner from "./components/scrapers/ScraperScheduleRunner";
 import RegisterSale from "./pages/Sales/RegisterSale";
 import SalesHistory from "./pages/Sales/SalesHistory";
 import QuotesList from "./pages/Quotes/QuotesList";
@@ -51,6 +53,8 @@ export default function App() {
         <AuthProvider>
           <ScraperProvider>
             <ScrollToTop />
+            {/* Dispara las programaciones de scraping vencidas al iniciar sesión el admin */}
+            <ScraperScheduleRunner />
             <Routes>
               {/* Dashboard Layout — requiere sesión iniciada */}
               <Route
@@ -280,6 +284,14 @@ export default function App() {
                   element={
                     <ProtectedRoute roles={["ADMIN"]}>
                       <ScraperPage source="mercadolibre" />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/datos-externos/programacion"
+                  element={
+                    <ProtectedRoute roles={["ADMIN"]}>
+                      <ScraperSchedules />
                     </ProtectedRoute>
                   }
                 />

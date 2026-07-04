@@ -172,7 +172,8 @@ export default function ProductsCatalog() {
             <TableHeader className="border-b border-gray-100 dark:border-gray-800">
               <TableRow>
                 {["SKU", "Producto", "Categoría", "Material", "Costo", "Venta", "Stock", "Estado", ""].map((h, i) => (
-                  <TableCell key={h || `acc-${i}`} isHeader className="px-4 py-3 text-left text-theme-xs font-medium text-gray-500 dark:text-gray-400">
+                  <TableCell key={h || `acc-${i}`} isHeader className="px-4 py-3
+                   text-left text-theme-xs font-medium text-gray-500 dark:text-gray-400">
                     {h}
                   </TableCell>
                 ))}
