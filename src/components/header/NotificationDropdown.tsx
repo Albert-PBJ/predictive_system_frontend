@@ -1,11 +1,73 @@
 import { useState } from "react";
+import { Link } from "react-router";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
 import { SCRAPER_META, useScraper } from "../../context/ScraperContext";
+import { useNotifications } from "../../context/NotificationsContext";
+import type { AlertSeverity, AppNotification } from "../../services/notificationsService";
+import { fmtDateTime } from "../../utils/format";
+
+// Tope de ítems mostrados en la campana; el resto vive en "Ver todas".
+const DROPDOWN_CAP = 8;
+
+// Estilo del punto/ícono por severidad (rojo crítico, ámbar advertencia, azul info).
+const SEV_DOT: Record<AlertSeverity, string> = {
+  CRIT: "bg-error-500",
+  WARN: "bg-warning-500",
+  INFO: "bg-blue-light-500",
+};
+const SEV_RING: Record<AlertSeverity, string> = {
+  CRIT: "bg-error-50 text-error-500 dark:bg-error-500/15",
+  WARN: "bg-warning-50 text-warning-500 dark:bg-warning-500/15",
+  INFO: "bg-blue-light-50 text-blue-light-500 dark:bg-blue-light-500/15",
+};
+
+function AlertRow({ n, onClick }: { n: AppNotification; onClick: () => void }) {
+  return (
+    <li>
+      <DropdownItem
+        tag="a"
+        to="/notificaciones"
+        onItemClick={onClick}
+        className="flex items-start gap-3 rounded-lg border-b border-gray-100 p-3 px-4.5 py-3 hover:bg-gray-100 dark:border-gray-800 dark:hover:bg-white/5"
+      >
+        <span
+          className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${SEV_RING[n.severity]}`}
+        >
+          <span className={`h-2 w-2 rounded-full ${SEV_DOT[n.severity]}`} />
+        </span>
+        <span className="block min-w-0">
+          <span className="mb-0.5 flex items-center gap-2">
+            <span className="truncate text-theme-sm font-medium text-gray-800 dark:text-white/90">
+              {n.title}
+            </span>
+            {!n.read && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" />}
+          </span>
+          <span className="line-clamp-2 block text-theme-xs text-gray-500 dark:text-gray-400">
+            {n.message}
+          </span>
+          <span className="mt-1 flex items-center gap-2 text-theme-xs text-gray-400">
+            <span>{n.type_label}</span>
+            <span>·</span>
+            <span>{fmtDateTime(n.created_at)}</span>
+            {n.is_resolved && <span className="text-success-500">· resuelta</span>}
+          </span>
+        </span>
+      </DropdownItem>
+    </li>
+  );
+}
 
 export default function NotificationDropdown() {
   const [isOpen, setIsOpen] = useState(false);
-  const { notifications, unreadCount, markNotificationsRead } = useScraper();
+  const { notifications, unreadCount, markAllRead } = useNotifications();
+  const {
+    notifications: scraperNotifs,
+    unreadCount: scraperUnread,
+    markNotificationsRead,
+  } = useScraper();
+
+  const totalUnread = unreadCount + scraperUnread;
 
   function closeDropdown() {
     setIsOpen(false);
@@ -14,9 +76,15 @@ export default function NotificationDropdown() {
   const handleClick = () => {
     const opening = !isOpen;
     setIsOpen(opening);
-    // Al abrir, marcamos como leídas para apagar el indicador.
-    if (opening) markNotificationsRead();
+    // Al abrir, marcamos todo como leído para apagar el indicador.
+    if (opening) {
+      markAllRead();
+      markNotificationsRead();
+    }
   };
+
+  const shownAlerts = notifications.slice(0, DROPDOWN_CAP);
+  const empty = notifications.length === 0 && scraperNotifs.length === 0;
 
   return (
     <div className="relative">
@@ -26,7 +94,7 @@ export default function NotificationDropdown() {
       >
         <span
           className={`absolute right-0 top-0.5 z-10 h-2 w-2 rounded-full bg-orange-400 ${
-            unreadCount === 0 ? "hidden" : "flex"
+            totalUnread === 0 ? "hidden" : "flex"
           }`}
         >
           <span className="absolute inline-flex w-full h-full bg-orange-400 rounded-full opacity-75 animate-ping"></span>
@@ -75,13 +143,20 @@ export default function NotificationDropdown() {
             </svg>
           </button>
         </div>
+
         <ul className="flex flex-col h-auto overflow-y-auto custom-scrollbar">
-          {notifications.length === 0 && (
+          {empty && (
             <li className="px-2 py-6 text-sm text-center text-gray-500 dark:text-gray-400">
               No hay notificaciones.
             </li>
           )}
-          {notifications.map((n) => (
+
+          {shownAlerts.map((n) => (
+            <AlertRow key={`alert-${n.id}`} n={n} onClick={closeDropdown} />
+          ))}
+
+          {/* Notificaciones de scraping (efímeras, solo del ADMIN que las disparó). */}
+          {scraperNotifs.map((n) => (
             <li key={n.id}>
               <DropdownItem
                 tag="a"
@@ -117,6 +192,14 @@ export default function NotificationDropdown() {
             </li>
           ))}
         </ul>
+
+        <Link
+          to="/notificaciones"
+          onClick={closeDropdown}
+          className="mt-3 block rounded-lg border border-gray-200 bg-white p-2.5 text-center text-theme-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/5"
+        >
+          Ver todas las notificaciones
+        </Link>
       </Dropdown>
     </div>
   );

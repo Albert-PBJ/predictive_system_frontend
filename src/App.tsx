@@ -10,10 +10,13 @@ import { ScrollToTop } from "./components/common/ScrollToTop";
 import Home from "./pages/Dashboard/Home";
 import { AuthProvider } from "./context/AuthContext";
 import { ScraperProvider } from "./context/ScraperContext";
+import { NotificationsProvider } from "./context/NotificationsContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import ScraperPage from "./pages/ExternalData/ScraperPage";
 import ScraperSchedules from "./pages/ExternalData/ScraperSchedules";
 import ScraperScheduleRunner from "./components/scrapers/ScraperScheduleRunner";
+import AlertScanRunner from "./components/notifications/AlertScanRunner";
+import AllNotifications from "./pages/Notifications/AllNotifications";
 import RegisterSale from "./pages/Sales/RegisterSale";
 import SalesHistory from "./pages/Sales/SalesHistory";
 import QuotesList from "./pages/Quotes/QuotesList";
@@ -51,10 +54,13 @@ export default function App() {
     <>
       <Router>
         <AuthProvider>
+          <NotificationsProvider>
           <ScraperProvider>
             <ScrollToTop />
             {/* Dispara las programaciones de scraping vencidas al iniciar sesión el admin */}
             <ScraperScheduleRunner />
+            {/* Dispara el barrido de alertas (quiebre previsto, sobrestock, etc.) al iniciar sesión */}
+            <AlertScanRunner />
             <Routes>
               {/* Dashboard Layout — requiere sesión iniciada */}
               <Route
@@ -68,6 +74,9 @@ export default function App() {
 
                 {/* Ayuda — guía de uso para cualquier usuario autenticado */}
                 <Route path="/ayuda" element={<HelpPage />} />
+
+                {/* Notificaciones — bandeja del usuario (cualquier rol autenticado) */}
+                <Route path="/notificaciones" element={<AllNotifications />} />
                 <Route path="/blank" element={<Blank />} />
 
                 {/* Registrar venta — solo quien puede vender (no inventario) */}
@@ -326,6 +335,7 @@ export default function App() {
               <Route path="*" element={<NotFound />} />
             </Routes>
           </ScraperProvider>
+          </NotificationsProvider>
         </AuthProvider>
       </Router>
     </>
