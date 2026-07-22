@@ -105,6 +105,8 @@ export interface LatestRate {
   parallel_rate: string | null;
   effective_rate: string;
   source: string;
+  // IVA por defecto (%) configurado en la Configuración del Sistema.
+  iva_rate?: string;
 }
 
 export const salesService = {

@@ -234,6 +234,57 @@ export interface RetrainResult {
   trained_at: string | null;
 }
 
+// --- Historial de reentrenamientos (evolución de la precisión) ---
+// Cada reentrenamiento (comando o botón del panel) registra una instantánea de las
+// métricas de los modelos activos, para graficar cómo evoluciona su precisión.
+export interface TrainingRunModelMetric {
+  model_type: string;
+  model_type_display: string;
+  name: string;
+  technique: string | null;
+  r2: number | null;
+  rmse: number | null;
+  mae: number | null;
+  accuracy: number | null;
+  precision: number | null;
+  recall: number | null;
+}
+
+export interface TrainingRun {
+  id: number;
+  index: number;
+  trained_at: string | null;
+  trigger: string;
+  trigger_display: string;
+  triggered_by: string;
+  models: TrainingRunModelMetric[];
+}
+
+export interface TrainingHistoryPoint {
+  run_id: number;
+  index: number;
+  trained_at: string | null;
+  value: number | null; // la métrica de precisión (R² o exactitud)
+  r2: number | null;
+  rmse: number | null;
+  mae: number | null;
+  accuracy: number | null;
+  technique: string | null;
+}
+
+export interface TrainingHistoryModel {
+  model_type: string;
+  display: string;
+  metric: string; // "r2" | "accuracy"
+  metric_label: string; // "R²" | "Exactitud"
+  points: TrainingHistoryPoint[];
+}
+
+export interface TrainingHistoryResponse {
+  runs: TrainingRun[];
+  models: TrainingHistoryModel[];
+}
+
 export const analyticsService = {
   async overview(): Promise<OverviewResponse> {
     const { data } = await api.get<OverviewResponse>("/analytics/overview");
@@ -243,6 +294,11 @@ export const analyticsService = {
   // limpia la caché del servidor. Síncrono: tarda unos segundos. Gerente/Admin.
   async retrain(): Promise<RetrainResult> {
     const { data } = await api.post<RetrainResult>("/analytics/retrain");
+    return data;
+  },
+  // Historial de reentrenamientos + evolución de la precisión de cada modelo.
+  async trainingHistory(): Promise<TrainingHistoryResponse> {
+    const { data } = await api.get<TrainingHistoryResponse>("/analytics/training-history");
     return data;
   },
   // Narrativa del reporte para el rango (Desde/Hasta). Accesible a todo el personal

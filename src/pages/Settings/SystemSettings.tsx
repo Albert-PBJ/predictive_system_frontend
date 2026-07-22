@@ -5,6 +5,7 @@ import ComponentCard from "../../components/common/ComponentCard";
 import Spinner from "../../components/common/Spinner";
 import Label from "../../components/form/Label";
 import Input from "../../components/form/input/InputField";
+import TextArea from "../../components/form/input/TextArea";
 import Select from "../../components/form/Select";
 import Switch from "../../components/form/switch/Switch";
 import Button from "../../components/ui/button/Button";
@@ -309,6 +310,66 @@ export default function SystemSettings() {
       ) : null}
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        {/* ── Datos de la empresa (encabezado de los PDF) ────────────── */}
+        <div className="xl:col-span-2">
+          <ComponentCard
+            title="Datos de la empresa"
+            desc="Aparecen en el encabezado de los presupuestos y las órdenes de despacho (PDF)."
+          >
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Razón social">
+                <Input value={str("company_name")} onChange={(e) => set("company_name", e.target.value)} />
+              </Field>
+              <Field label="RIF">
+                <Input
+                  value={str("company_rif")}
+                  onChange={(e) => set("company_rif", e.target.value)}
+                  placeholder="J-12345678-9"
+                />
+              </Field>
+            </div>
+            <Field label="Dirección" help="Dirección fiscal completa que se muestra en los documentos.">
+              <TextArea
+                rows={2}
+                value={str("company_address")}
+                onChange={(v) => set("company_address", v)}
+                placeholder="Av. Principal…, Municipio…, Estado…"
+              />
+            </Field>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Teléfono(s)" help="Puedes separar varios con « / ».">
+                <Input
+                  value={str("company_phone")}
+                  onChange={(e) => set("company_phone", e.target.value)}
+                  placeholder="0414-000.00.00 / 0424-000.00.00"
+                />
+              </Field>
+              <Field label="Correo electrónico">
+                <Input
+                  type="email"
+                  value={str("company_email")}
+                  onChange={(e) => set("company_email", e.target.value)}
+                  placeholder="empresa@correo.com"
+                />
+              </Field>
+              <Field label="Sitio web">
+                <Input
+                  value={str("company_website")}
+                  onChange={(e) => set("company_website", e.target.value)}
+                  placeholder="www.empresa.com"
+                />
+              </Field>
+              <Field label="URL del logo" help="Imagen PNG/JPG para los documentos (opcional).">
+                <Input
+                  value={str("company_logo_url")}
+                  onChange={(e) => set("company_logo_url", e.target.value)}
+                  placeholder="https://…/logo.png"
+                />
+              </Field>
+            </div>
+          </ComponentCard>
+        </div>
+
         {/* ── Tasa de cambio ─────────────────────────────────────────── */}
         <ComponentCard title="Tasa de cambio" desc="Carga la tasa BCV/paralela y elige cómo se convierte USD→VES.">
           <div className="rounded-lg bg-gray-50 p-4 dark:bg-white/[0.03]">

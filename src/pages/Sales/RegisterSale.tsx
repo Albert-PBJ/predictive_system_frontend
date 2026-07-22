@@ -84,7 +84,11 @@ export default function RegisterSale() {
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const [invoiceWarning, setInvoiceWarning] = useState<string | null>(null);
 
-  const ivaPct = linkedQuote ? Number(linkedQuote.iva_rate) : 16;
+  // IVA a aplicar (%): el del presupuesto enlazado (la venta lo hereda) o, si no, el IVA
+  // por defecto configurado en la Configuración del Sistema (llega en /exchange-rate/latest).
+  // Es obligatorio mostrarlo: no se puede ofrecer un precio sin IVA.
+  const settingsIva = rate?.iva_rate != null ? Number(rate.iva_rate) : null;
+  const ivaPct = linkedQuote ? Number(linkedQuote.iva_rate) : settingsIva ?? 16;
 
   // Al activar "Registrar la factura ahora", precarga la fecha y sugiere el correlativo.
   const toggleInvoiceNow = (checked: boolean) => {
@@ -199,7 +203,10 @@ export default function RegisterSale() {
     () => lines.reduce((acc, l) => acc + lineDiscount(l), 0),
     [lines],
   );
-  const totalVES = effectiveRate !== null ? subtotalUSD * effectiveRate : null;
+  // Desglose de IVA sobre la base imponible (subtotal). El total a pagar lo incluye.
+  const ivaUSD = subtotalUSD * (ivaPct / 100);
+  const totalWithIvaUSD = subtotalUSD + ivaUSD;
+  const totalWithIvaVES = effectiveRate !== null ? totalWithIvaUSD * effectiveRate : null;
 
   const lineError = (l: Line): string | null => {
     if (!Number.isInteger(l.quantity) || l.quantity < 1) return "Cantidad inválida";
@@ -242,8 +249,14 @@ export default function RegisterSale() {
       sale_type: saleType,
       status,
       notes: notes.trim(),
-      // Relaciona la venta con el presupuesto y hereda su IVA.
-      ...(linkedQuote ? { quote: linkedQuote.id, iva_rate: linkedQuote.iva_rate } : {}),
+      // Relaciona la venta con el presupuesto (hereda su IVA) o, si no, aplica el IVA
+      // por defecto de la Configuración — el mismo que se mostró (WYSIWYG). Si no se
+      // conoce (sin tasa cargada), se omite y el servidor usa su IVA por defecto.
+      ...(linkedQuote
+        ? { quote: linkedQuote.id, iva_rate: linkedQuote.iva_rate }
+        : settingsIva != null
+          ? { iva_rate: settingsIva }
+          : {}),
       items: lines.map((l) =>
         isService(l.product)
           ? {
@@ -640,17 +653,19 @@ export default function RegisterSale() {
               {totalDiscountUSD > 0 && (
                 <Row label="Descuento" value={`− ${fmtUSD(totalDiscountUSD)}`} />
               )}
+              <Row label="Base imponible (USD)" value={fmtUSD(subtotalUSD)} />
+              <Row label={`IVA (${ivaPct}%)`} value={fmtUSD(ivaUSD)} />
               <div className="border-t border-gray-100 pt-3 dark:border-gray-800">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">Total (USD)</span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Total a pagar (USD)</span>
                   <span className="text-lg font-semibold text-gray-800 dark:text-white/90">
-                    {fmtUSD(subtotalUSD)}
+                    {fmtUSD(totalWithIvaUSD)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">Total (VES)</span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Total a pagar (VES)</span>
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {totalVES !== null ? fmtVES(totalVES) : "—"}
+                    {totalWithIvaVES !== null ? fmtVES(totalWithIvaVES) : "—"}
                   </span>
                 </div>
               </div>

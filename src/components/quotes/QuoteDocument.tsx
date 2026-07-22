@@ -33,15 +33,14 @@ const styles = StyleSheet.create({
   page: { paddingTop: 34, paddingBottom: 44, paddingHorizontal: 36, fontSize: 9.5, color: c.body, fontFamily: "Helvetica" },
 
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 },
+  companyBlock: { maxWidth: 300, paddingRight: 12 },
   company: { fontSize: 16, fontWeight: "bold", color: c.ink },
-  companySub: { fontSize: 8.5, color: c.muted, marginTop: 2, maxWidth: 240 },
+  companySub: { fontSize: 8.5, color: c.muted, marginTop: 2, maxWidth: 290 },
 
   docBox: { alignItems: "flex-end" },
   docKicker: { fontSize: 9, fontWeight: "bold", letterSpacing: 1, color: c.brand },
   docNumber: { fontSize: 14, fontWeight: "bold", color: c.ink, marginTop: 2 },
   docMeta: { fontSize: 8.5, color: c.muted, marginTop: 3 },
-
-  statusPill: { marginTop: 6, fontSize: 8, fontWeight: "bold", color: c.white, backgroundColor: c.brand, paddingVertical: 2, paddingHorizontal: 7, borderRadius: 3 },
 
   divider: { borderBottomWidth: 1, borderBottomColor: c.grid, marginVertical: 12 },
 
@@ -110,10 +109,17 @@ export default function QuoteDocument({ quote, company }: QuoteDocumentProps) {
   const totalVes = VES(quote.total_ves);
   const subtotalVes = VES(quote.subtotal_ves);
 
-  // Subtítulo del encabezado: RIF · teléfono · web (lo que haya); si no, una glosa.
-  const companySub =
-    [co.rif && `RIF: ${co.rif}`, co.phone, co.website].filter(Boolean).join(" · ") ||
-    "Mobiliario de oficina · Venezuela";
+  // Líneas del encabezado de la empresa: dirección, teléfono(s), correo y RIF·web (lo
+  // que esté configurado). Si no hay nada, una glosa por defecto.
+  const companyLines = [
+    co.address,
+    co.phone,
+    co.email,
+    [co.rif && `RIF: ${co.rif}`, co.website].filter(Boolean).join("  ·  "),
+  ]
+    .map((l) => (l || "").trim())
+    .filter(Boolean);
+  if (companyLines.length === 0) companyLines.push("Mobiliario de oficina · Venezuela");
 
   const extras: string[] = [];
   if (quote.includes_installation) extras.push("Incluye servicio de instalación.");
@@ -124,16 +130,17 @@ export default function QuoteDocument({ quote, company }: QuoteDocumentProps) {
       <Page size="A4" style={styles.page}>
         {/* Encabezado */}
         <View style={styles.header}>
-          <View>
+          <View style={styles.companyBlock}>
             <Text style={styles.company}>{co.name}</Text>
-            <Text style={styles.companySub}>{companySub}</Text>
+            {companyLines.map((line, i) => (
+              <Text key={i} style={styles.companySub}>{line}</Text>
+            ))}
           </View>
           <View style={styles.docBox}>
             <Text style={styles.docKicker}>PRESUPUESTO</Text>
             <Text style={styles.docNumber}>N° {quote.quote_number}</Text>
             <Text style={styles.docMeta}>Emitido: {fmtDay(quote.issued_date)}</Text>
             {quote.expiry_date ? <Text style={styles.docMeta}>Válido hasta: {fmtDay(quote.expiry_date)}</Text> : null}
-            <Text style={styles.statusPill}>{quote.status_display}</Text>
           </View>
         </View>
 

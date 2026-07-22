@@ -31,8 +31,9 @@ const styles = StyleSheet.create({
   page: { paddingTop: 34, paddingBottom: 60, paddingHorizontal: 36, fontSize: 9.5, color: c.body, fontFamily: "Helvetica" },
 
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 },
+  companyBlock: { maxWidth: 300, paddingRight: 12 },
   company: { fontSize: 16, fontWeight: "bold", color: c.ink },
-  companySub: { fontSize: 8.5, color: c.muted, marginTop: 2, maxWidth: 240 },
+  companySub: { fontSize: 8.5, color: c.muted, marginTop: 2, maxWidth: 290 },
 
   docBox: { alignItems: "flex-end" },
   docKicker: { fontSize: 9, fontWeight: "bold", letterSpacing: 1, color: c.brand },
@@ -84,18 +85,28 @@ export interface DispatchDocumentProps {
 
 export default function DispatchDocument({ order, company }: DispatchDocumentProps) {
   const co = company ?? DEFAULT_COMPANY;
-  const companySub =
-    [co.rif && `RIF: ${co.rif}`, co.phone, co.website].filter(Boolean).join(" · ") ||
-    "Mobiliario de oficina · Venezuela";
+  // Líneas del encabezado de la empresa: dirección, teléfono(s), correo y RIF·web (lo
+  // que esté configurado). Si no hay nada, una glosa por defecto.
+  const companyLines = [
+    co.address,
+    co.phone,
+    co.email,
+    [co.rif && `RIF: ${co.rif}`, co.website].filter(Boolean).join("  ·  "),
+  ]
+    .map((l) => (l || "").trim())
+    .filter(Boolean);
+  if (companyLines.length === 0) companyLines.push("Mobiliario de oficina · Venezuela");
   const totalUnits = order.items.reduce((a, it) => a + it.quantity, 0);
 
   return (
     <Document title={`Orden de despacho ${order.order_number}`} author={co.name} subject="Orden de despacho">
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
-          <View>
+          <View style={styles.companyBlock}>
             <Text style={styles.company}>{co.name}</Text>
-            <Text style={styles.companySub}>{companySub}</Text>
+            {companyLines.map((line, i) => (
+              <Text key={i} style={styles.companySub}>{line}</Text>
+            ))}
           </View>
           <View style={styles.docBox}>
             <Text style={styles.docKicker}>ORDEN DE DESPACHO</Text>

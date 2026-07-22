@@ -55,7 +55,11 @@ export default function CreateQuote() {
   const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
-    salesService.getLatestRate().then(setRate);
+    salesService.getLatestRate().then((r) => {
+      setRate(r);
+      // IVA por defecto tomado de la Configuración del Sistema (queda editable).
+      if (r?.iva_rate != null) setIvaRate(String(Number(r.iva_rate)));
+    });
   }, []);
 
   // ── Manejo de líneas ──

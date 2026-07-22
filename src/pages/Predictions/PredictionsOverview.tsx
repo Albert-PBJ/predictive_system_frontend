@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "../../components/ui/table";
+import TrainingHistoryModal from "../../components/analytics/TrainingHistoryModal";
 import { analyticsService, type OverviewResponse } from "../../services/analyticsService";
 import { getApiError } from "../../services/apiError";
 import { fmtUSD, fmtDate } from "../../utils/format";
@@ -37,6 +38,8 @@ export default function PredictionsOverview() {
   const [error, setError] = useState<string | null>(null);
   const [retraining, setRetraining] = useState(false);
   const [retrainMsg, setRetrainMsg] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyKey, setHistoryKey] = useState(0);
 
   const load = useCallback(async () => {
     const d = await analyticsService.overview();
@@ -61,6 +64,7 @@ export default function PredictionsOverview() {
     try {
       const res = await analyticsService.retrain();
       await load(); // recarga el registro + titulares con los modelos recién entrenados
+      setHistoryKey((k) => k + 1); // el reentrenamiento añadió un punto al historial
       setRetrainMsg(
         `Modelos reentrenados: ${res.active_models} activos${
           res.trained_at ? ` · ${fmtDate(res.trained_at)}` : ""
@@ -171,15 +175,20 @@ export default function PredictionsOverview() {
                   Reentrena con los datos más recientes (ventas, tasas y scraping) y recalcula las métricas.
                 </p>
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleRetrain}
-                disabled={retraining}
-                startIcon={retraining ? <Spinner className="h-4 w-4 text-current" /> : undefined}
-              >
-                {retraining ? "Reentrenando…" : "Reentrenar modelos"}
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button size="sm" variant="outline" onClick={() => setHistoryOpen(true)}>
+                  Ver historial de precisión
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleRetrain}
+                  disabled={retraining}
+                  startIcon={retraining ? <Spinner className="h-4 w-4 text-current" /> : undefined}
+                >
+                  {retraining ? "Reentrenando…" : "Reentrenar modelos"}
+                </Button>
+              </div>
             </div>
             {retrainMsg && (
               <div className="mb-3">
@@ -222,6 +231,12 @@ export default function PredictionsOverview() {
           </div>
         </>
       )}
+
+      <TrainingHistoryModal
+        isOpen={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        refreshKey={historyKey}
+      />
     </>
   );
 }
