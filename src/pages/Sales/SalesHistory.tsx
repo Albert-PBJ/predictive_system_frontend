@@ -21,6 +21,7 @@ import {
 import { useModal } from "../../hooks/useModal";
 import { useAuth } from "../../context/AuthContext";
 import ImpexBar from "../../components/impex/ImpexBar";
+import TextArea from "../../components/form/input/TextArea";
 import {
   salesService,
   SALE_STATUS_FILTERS,
@@ -30,6 +31,7 @@ import { getApiError } from "../../services/apiError";
 import { fmtUSD, fmtVES, fmtDate } from "../../utils/format";
 import { CAN_REGISTER_SALES, OPERATIONAL_ROLES } from "../../services/types";
 import InvoiceModal from "../../components/sales/InvoiceModal";
+import PaymentModal from "../../components/sales/PaymentModal";
 import DispatchOrderModal from "../../components/sales/DispatchOrderModal";
 
 const PAGE_SIZE = 10;
@@ -53,7 +55,13 @@ export default function SalesHistory() {
   const canDispatch = hasRole(...OPERATIONAL_ROLES);
 
   const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const [paymentOpen, setPaymentOpen] = useState(false);
   const [dispatchOpen, setDispatchOpen] = useState(false);
+
+  // Edición de notas de la venta (inline en el detalle).
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesDraft, setNotesDraft] = useState("");
+  const [savingNotes, setSavingNotes] = useState(false);
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -119,6 +127,7 @@ export default function SalesHistory() {
         if (!active) return;
         setSelected(s);
         setActionError(null);
+        setEditingNotes(false);
         openModal();
         const next = new URLSearchParams(searchParams);
         next.delete("sale");
@@ -135,6 +144,7 @@ export default function SalesHistory() {
   const openDetail = (sale: Sale) => {
     setSelected(sale);
     setActionError(null);
+    setEditingNotes(false);
     openModal();
   };
 
@@ -156,6 +166,32 @@ export default function SalesHistory() {
   const handleInvoiced = (updated: Sale) => {
     setSelected(updated); // refleja los datos fiscales en el detalle abierto
     load(); // refresca la lista (nº de factura en la tabla)
+  };
+
+  const handlePaid = (updated: Sale) => {
+    setSelected(updated); // refleja la cobranza (y el nuevo estado si se completó)
+    load(); // refresca la lista (el estado puede pasar a Completada)
+  };
+
+  const startEditNotes = () => {
+    setNotesDraft(selected?.notes ?? "");
+    setEditingNotes(true);
+    setActionError(null);
+  };
+
+  const saveNotes = async () => {
+    if (!selected) return;
+    setSavingNotes(true);
+    setActionError(null);
+    try {
+      const updated = await salesService.editNotes(selected.id, notesDraft.trim());
+      setSelected(updated);
+      setEditingNotes(false);
+    } catch (err) {
+      setActionError(getApiError(err, "No se pudieron guardar las notas."));
+    } finally {
+      setSavingNotes(false);
+    }
   };
 
   const clearFilters = () => {
@@ -352,6 +388,61 @@ export default function SalesHistory() {
               <Field label="Comisión" value={fmtUSD(selected.commission_usd)} />
             </div>
 
+            {/* Cobranza (abonos / saldo) */}
+            {selected.status !== "ANU" && (
+              <div className="mt-5 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-sm font-medium text-gray-800 dark:text-white/90">Cobranza</p>
+                  <Badge
+                    variant="light"
+                    color={selected.is_fully_paid ? "success" : "warning"}
+                    size="sm"
+                  >
+                    {selected.is_fully_paid ? "Pagada" : `Saldo ${fmtUSD(selected.balance_usd)}`}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <Field label="Total con IVA" value={fmtUSD(selected.total_with_iva_usd)} />
+                  <Field label="Abonado" value={fmtUSD(selected.amount_paid_usd)} />
+                  <Field label="Saldo pendiente" value={fmtUSD(selected.balance_usd)} />
+                </div>
+
+                {selected.payments.length > 0 && (
+                  <div className="mt-4 max-w-full overflow-x-auto">
+                    <Table>
+                      <TableHeader className="border-b border-gray-100 dark:border-gray-800">
+                        <TableRow>
+                          {["Fecha", "Medio", "Referencia", "Monto"].map((h) => (
+                            <TableCell key={h} isHeader className="px-3 py-2 text-left text-theme-xs font-medium text-gray-500 dark:text-gray-400">
+                              {h}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
+                        {selected.payments.map((p) => (
+                          <TableRow key={p.id}>
+                            <TableCell className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">{fmtDate(p.payment_date)}</TableCell>
+                            <TableCell className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">{p.method_display}</TableCell>
+                            <TableCell className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">{p.reference || "—"}</TableCell>
+                            <TableCell className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{fmtUSD(p.amount_usd)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+
+                {!selected.is_fully_paid && canRegisterSales && (
+                  <div className="mt-4 flex justify-end">
+                    <Button size="sm" onClick={() => setPaymentOpen(true)}>
+                      Registrar abono
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Facturación fiscal */}
             <div className="mt-5 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
               <div className="mb-2 flex items-center justify-between">
@@ -388,12 +479,38 @@ export default function SalesHistory() {
               )}
             </div>
 
-            {selected.notes && (
-              <div className="mt-4">
+            {/* Notas (editables) */}
+            <div className="mt-4">
+              <div className="mb-1 flex items-center justify-between">
                 <p className="text-xs text-gray-500 dark:text-gray-400">Notas</p>
-                <p className="whitespace-pre-line text-sm text-gray-700 dark:text-gray-300">{selected.notes}</p>
+                {!editingNotes && canRegisterSales && selected.status !== "ANU" && (
+                  <button
+                    type="button"
+                    onClick={startEditNotes}
+                    className="text-xs font-medium text-brand-500 hover:text-brand-600"
+                  >
+                    {selected.notes ? "Editar" : "Agregar nota"}
+                  </button>
+                )}
               </div>
-            )}
+              {editingNotes ? (
+                <div className="space-y-2">
+                  <TextArea rows={3} value={notesDraft} onChange={setNotesDraft} placeholder="Observaciones" />
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setEditingNotes(false)} disabled={savingNotes}>
+                      Cancelar
+                    </Button>
+                    <Button size="sm" onClick={saveNotes} disabled={savingNotes}>
+                      {savingNotes ? "Guardando…" : "Guardar nota"}
+                    </Button>
+                  </div>
+                </div>
+              ) : selected.notes ? (
+                <p className="whitespace-pre-line text-sm text-gray-700 dark:text-gray-300">{selected.notes}</p>
+              ) : (
+                <p className="text-sm text-gray-400">Sin notas.</p>
+              )}
+            </div>
 
             {actionError && (
               <div className="mt-4">
@@ -450,6 +567,14 @@ export default function SalesHistory() {
         onClose={() => setInvoiceOpen(false)}
         sale={selected}
         onInvoiced={handleInvoiced}
+      />
+
+      {/* Registrar un abono a la venta seleccionada */}
+      <PaymentModal
+        isOpen={paymentOpen}
+        onClose={() => setPaymentOpen(false)}
+        sale={selected}
+        onPaid={handlePaid}
       />
 
       {/* Generar orden de despacho de la venta seleccionada. El modal muestra su

@@ -30,7 +30,7 @@ import type { Quote } from "../../services/quotesService";
 import {
   salesService,
   SALE_TYPES,
-  SALE_STATUSES,
+  PAYMENT_METHODS,
   type LatestRate,
   type NewSale,
   type Sale,
@@ -57,8 +57,12 @@ export default function RegisterSale() {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [saleDate, setSaleDate] = useState(todayISO());
   const [saleType, setSaleType] = useState("RET");
-  const [status, setStatus] = useState("COMP");
   const [notes, setNotes] = useState("");
+  // Cobranza: por defecto la venta se cobra completa. Si no, se registra un abono
+  // inicial (el saldo queda pendiente y la venta se marca "Pendiente").
+  const [fullyPaid, setFullyPaid] = useState(true);
+  const [amountPaid, setAmountPaid] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("EFE");
   const [lines, setLines] = useState<Line[]>([]);
 
   const [rate, setRate] = useState<LatestRate | null>(null);
@@ -240,6 +244,18 @@ export default function RegisterSale() {
       );
       return;
     }
+    // Validación del abono inicial (cuando no es pago completo).
+    const paidNum = Number(amountPaid);
+    if (!fullyPaid) {
+      if (amountPaid.trim() !== "" && (Number.isNaN(paidNum) || paidNum < 0)) {
+        setError("El monto abonado no es válido.");
+        return;
+      }
+      if (paidNum > totalWithIvaUSD + 0.005) {
+        setError("El monto abonado no puede superar el total a pagar.");
+        return;
+      }
+    }
     setError(null);
     setInvoiceWarning(null);
     setSubmitting(true);
@@ -247,7 +263,11 @@ export default function RegisterSale() {
       customer: customer.id,
       sale_date: saleDate,
       sale_type: saleType,
-      status,
+      // Cobranza: pago completo, o abono inicial (0 = a crédito) → estado derivado.
+      fully_paid: fullyPaid,
+      ...(fullyPaid
+        ? {}
+        : { amount_paid: amountPaid.trim() === "" ? 0 : paidNum, payment_method: paymentMethod }),
       notes: notes.trim(),
       // Relaciona la venta con el presupuesto (hereda su IVA) o, si no, aplica el IVA
       // por defecto de la Configuración — el mismo que se mostró (WYSIWYG). Si no se
@@ -307,7 +327,9 @@ export default function RegisterSale() {
     setCustomer(null);
     setSaleDate(todayISO());
     setSaleType("RET");
-    setStatus("COMP");
+    setFullyPaid(true);
+    setAmountPaid("");
+    setPaymentMethod("EFE");
     setNotes("");
     setLines([]);
     setLinkedQuote(null);
@@ -572,10 +594,59 @@ export default function RegisterSale() {
               <Label>Tipo de venta</Label>
               <Select options={SALE_TYPES} defaultValue={saleType} onChange={setSaleType} />
             </div>
+
+            {/* Cobranza: pago completo o abono parcial (el estado se deriva del saldo) */}
             <div>
-              <Label>Estado</Label>
-              <Select options={SALE_STATUSES} defaultValue={status} onChange={setStatus} />
+              <Label>Cobro</Label>
+              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={fullyPaid}
+                  onChange={(e) => setFullyPaid(e.target.checked)}
+                  disabled={submitting}
+                  className="size-4 rounded border-gray-300"
+                />
+                Pago completo (venta cobrada al 100%)
+              </label>
+
+              {!fullyPaid && (
+                <div className="mt-3 space-y-3 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <Label>Monto abonado (USD)</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step={0.01}
+                        value={amountPaid}
+                        onChange={(e) => setAmountPaid(e.target.value)}
+                        placeholder="0.00"
+                        disabled={submitting}
+                      />
+                    </div>
+                    <div>
+                      <Label>Medio de pago</Label>
+                      <Select
+                        options={PAYMENT_METHODS}
+                        defaultValue={paymentMethod}
+                        onChange={setPaymentMethod}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-500 dark:text-gray-400">Saldo pendiente</span>
+                    <span className="font-medium text-gray-800 dark:text-white/90">
+                      {fmtUSD(Math.max(0, totalWithIvaUSD - (Number(amountPaid) || 0)))}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    La venta quedará <strong>Pendiente</strong> hasta cobrar el saldo. Deja el monto
+                    en 0 para una venta a crédito.
+                  </p>
+                </div>
+              )}
             </div>
+
             <div>
               <Label>Notas</Label>
               <TextArea rows={3} value={notes} onChange={setNotes} placeholder="Observaciones (opcional)" />

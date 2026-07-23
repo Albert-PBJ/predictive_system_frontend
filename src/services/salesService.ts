@@ -16,6 +16,20 @@ export interface SaleItem {
   line_profit_usd: string;
 }
 
+// Abono (pago parcial) de una venta.
+export interface SalePayment {
+  id: number;
+  amount_usd: string;
+  amount_ves: string | null;
+  method: string;
+  method_display: string;
+  payment_date: string;
+  reference: string;
+  notes: string;
+  recorded_by_name: string;
+  created_at: string;
+}
+
 export interface Sale {
   id: number;
   customer: number;
@@ -40,6 +54,10 @@ export interface Sale {
   total_with_iva_usd: string;
   total_with_iva_ves: string | null;
   commission_usd: string;
+  // Cobranza: abonado, saldo pendiente y si está totalmente pagada.
+  amount_paid_usd: string;
+  balance_usd: string;
+  is_fully_paid: boolean;
   bcv_rate: string | null;
   parallel_rate: string | null;
   // Facturación fiscal (opcional; se completa con la acción "Facturar").
@@ -53,7 +71,16 @@ export interface Sale {
   dispatch_orders: { id: number; order_number: string; status: string; status_display: string }[];
   notes: string;
   items: SaleItem[];
+  payments: SalePayment[];
   created_at: string;
+}
+
+export interface PaymentPayload {
+  amount_usd: string | number;
+  method?: string;
+  payment_date?: string | null;
+  reference?: string;
+  notes?: string;
 }
 
 export interface InvoiceSuggestion {
@@ -80,9 +107,14 @@ export interface NewSale {
   seller?: number;
   sale_date?: string;
   sale_type?: string;
-  status?: string;
   notes?: string;
   iva_rate?: string | number;
+  // Cobranza: el estado (Pendiente/Completada) se deriva del pago. `fully_paid=true`
+  // (por defecto) = venta cobrada completa; si es false, `amount_paid` es el abono
+  // inicial (0 = a crédito) y `payment_method` su medio.
+  fully_paid?: boolean;
+  amount_paid?: string | number;
+  payment_method?: string;
   // Presupuesto relacionado (opcional): enlaza la venta al presupuesto y lo marca convertido.
   quote?: number;
   items: NewSaleItem[];
@@ -155,6 +187,19 @@ export const salesService = {
     return data;
   },
 
+  // Registra un abono (pago parcial) a una venta. Devuelve la venta actualizada
+  // (con su cobranza recalculada y autocompletada si el abono salda el total).
+  async addPayment(id: number, payload: PaymentPayload): Promise<Sale> {
+    const { data } = await api.post<Sale>(`/sales/${id}/pagos/`, payload);
+    return data;
+  },
+
+  // Edita las notas/observaciones de una venta.
+  async editNotes(id: number, notes: string): Promise<Sale> {
+    const { data } = await api.post<Sale>(`/sales/${id}/nota/`, { notes });
+    return data;
+  },
+
   async getLatestRate(): Promise<LatestRate | null> {
     try {
       const { data } = await api.get<LatestRate>("/exchange-rate/latest");
@@ -174,6 +219,17 @@ export const SALE_TYPES = [
 export const SALE_STATUSES = [
   { value: "COMP", label: "Completada" },
   { value: "PEN", label: "Pendiente" },
+];
+
+// Medios de pago para los abonos (deben coincidir con SalePayment.MethodChoices).
+export const PAYMENT_METHODS = [
+  { value: "EFE", label: "Efectivo (Bs)" },
+  { value: "DIV", label: "Efectivo (divisas)" },
+  { value: "PMO", label: "Pago móvil" },
+  { value: "TRA", label: "Transferencia" },
+  { value: "PDV", label: "Punto de venta" },
+  { value: "ZEL", label: "Zelle" },
+  { value: "OTR", label: "Otro" },
 ];
 
 export const SALE_STATUS_FILTERS = [
