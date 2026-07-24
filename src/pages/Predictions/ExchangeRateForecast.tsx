@@ -9,7 +9,7 @@ import { getApiError } from "../../services/apiError";
 
 const RATES = [
   { value: "bcv", label: "Tasa BCV (oficial)" },
-  { value: "parallel", label: "Tasa paralela" },
+  { value: "parallel", label: "Euro BCV" },
 ];
 
 export default function ExchangeRateForecast() {
@@ -36,10 +36,10 @@ export default function ExchangeRateForecast() {
 
   return (
     <>
-      <PageMeta title="Pronóstico de la tasa de cambio" description="Proyección de la tasa BCV y paralela" />
+      <PageMeta title="Pronóstico de la tasa de cambio" description="Proyección de la tasa BCV y Euro BCV" />
       <PageBreadcrumb pageTitle="Tasa de cambio (BCV)" />
       <p className="mb-5 max-w-3xl text-sm text-gray-500 dark:text-gray-400">
-        Proyección de la tasa {rate === "bcv" ? "BCV oficial" : "paralela"} (Bs/USD) con regresión lineal sobre el
+        Proyección de la tasa {rate === "bcv" ? "BCV oficial" : "Euro BCV"} (Bs/USD) con regresión lineal sobre el
         logaritmo de la tasa, que captura la devaluación exponencial del bolívar. Activa la escala logarítmica para
         ver mejor la tendencia.
       </p>

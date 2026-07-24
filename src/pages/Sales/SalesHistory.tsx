@@ -26,6 +26,7 @@ import {
   salesService,
   SALE_STATUS_FILTERS,
   type Sale,
+  type SalePayment,
 } from "../../services/salesService";
 import { getApiError } from "../../services/apiError";
 import { fmtUSD, fmtVES, fmtDate } from "../../utils/format";
@@ -33,6 +34,7 @@ import { CAN_REGISTER_SALES, OPERATIONAL_ROLES } from "../../services/types";
 import InvoiceModal from "../../components/sales/InvoiceModal";
 import PaymentModal from "../../components/sales/PaymentModal";
 import DispatchOrderModal from "../../components/sales/DispatchOrderModal";
+import { downloadPaymentReceiptPdf } from "../../components/sales/downloadPaymentReceipt";
 
 const PAGE_SIZE = 10;
 
@@ -77,6 +79,9 @@ export default function SalesHistory() {
   const [selected, setSelected] = useState<Sale | null>(null);
   const [voiding, setVoiding] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  // Descarga de recibo de un abono en curso (id del pago + variante) para deshabilitar
+  // los enlaces mientras se genera el PDF.
+  const [receiptBusy, setReceiptBusy] = useState<string | null>(null);
   const { isOpen, openModal, closeModal } = useModal();
 
   useEffect(() => {
@@ -171,6 +176,18 @@ export default function SalesHistory() {
   const handlePaid = (updated: Sale) => {
     setSelected(updated); // refleja la cobranza (y el nuevo estado si se completó)
     load(); // refresca la lista (el estado puede pasar a Completada)
+  };
+
+  // Descarga (reimprime) el recibo de un abono ya registrado, en la variante indicada.
+  const downloadReceipt = async (payment: SalePayment, variant: "cliente" | "interno") => {
+    if (!selected) return;
+    const key = `${payment.id}-${variant}`;
+    setReceiptBusy(key);
+    try {
+      await downloadPaymentReceiptPdf(selected, payment, variant);
+    } finally {
+      setReceiptBusy(null);
+    }
   };
 
   const startEditNotes = () => {
@@ -412,7 +429,7 @@ export default function SalesHistory() {
                     <Table>
                       <TableHeader className="border-b border-gray-100 dark:border-gray-800">
                         <TableRow>
-                          {["Fecha", "Medio", "Referencia", "Monto"].map((h) => (
+                          {["Fecha", "Medio", "Referencia", "Monto", "Recibo"].map((h) => (
                             <TableCell key={h} isHeader className="px-3 py-2 text-left text-theme-xs font-medium text-gray-500 dark:text-gray-400">
                               {h}
                             </TableCell>
@@ -426,6 +443,26 @@ export default function SalesHistory() {
                             <TableCell className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">{p.method_display}</TableCell>
                             <TableCell className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">{p.reference || "—"}</TableCell>
                             <TableCell className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{fmtUSD(p.amount_usd)}</TableCell>
+                            <TableCell className="px-3 py-2 text-sm">
+                              <div className="flex gap-3">
+                                <button
+                                  type="button"
+                                  onClick={() => downloadReceipt(p, "cliente")}
+                                  disabled={receiptBusy !== null}
+                                  className="font-medium text-brand-500 hover:text-brand-600 disabled:opacity-50"
+                                >
+                                  {receiptBusy === `${p.id}-cliente` ? "…" : "Cliente"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => downloadReceipt(p, "interno")}
+                                  disabled={receiptBusy !== null}
+                                  className="font-medium text-brand-500 hover:text-brand-600 disabled:opacity-50"
+                                >
+                                  {receiptBusy === `${p.id}-interno` ? "…" : "Interno"}
+                                </button>
+                              </div>
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

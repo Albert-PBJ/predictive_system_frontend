@@ -39,9 +39,9 @@ type BandForm = { min: string; max: string };
 type BandsForm = { categories: Record<string, BandForm>; default: BandForm };
 
 const RATE_BASIS_OPTIONS = [
-  { value: "PAR", label: "Paralela" },
+  { value: "PAR", label: "Euro BCV" },
   { value: "BCV", label: "BCV (oficial)" },
-  { value: "AVG", label: "Promedio BCV/Paralela" },
+  { value: "AVG", label: "Promedio BCV/Euro BCV" },
 ];
 
 function toForm(data: SystemSettingsData): FormState {
@@ -224,7 +224,7 @@ export default function SystemSettings() {
       const src = r.provider ? ` (${r.provider})` : "";
       // Las fuentes de la paralela a veces están caídas: avisa si solo se trajo la BCV.
       const note =
-        r.parallel_rate == null ? " No había una tasa paralela válida; cárgala manualmente si la necesitas." : "";
+        r.parallel_rate == null ? " No había una tasa Euro BCV válida; cárgala manualmente si la necesitas." : "";
       setRateMsg({ ok: true, text: `Tasa actualizada${src} (${r.date}).${note}` });
     } catch (e) {
       setRateMsg({ ok: false, text: getApiError(e) });
@@ -371,7 +371,7 @@ export default function SystemSettings() {
         </div>
 
         {/* ── Tasa de cambio ─────────────────────────────────────────── */}
-        <ComponentCard title="Tasa de cambio" desc="Carga la tasa BCV/paralela y elige cómo se convierte USD→VES.">
+        <ComponentCard title="Tasa de cambio" desc="Carga la tasa BCV/Euro BCV y elige cómo se convierte USD→VES.">
           <div className="rounded-lg bg-gray-50 p-4 dark:bg-white/[0.03]">
             {latest ? (
               <div className="grid grid-cols-3 gap-3 text-center">
@@ -380,7 +380,7 @@ export default function SystemSettings() {
                   <p className="text-base font-semibold text-gray-800 dark:text-white/90">{latest.bcv_rate}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Paralela</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Euro BCV</p>
                   <p className="text-base font-semibold text-gray-800 dark:text-white/90">{latest.parallel_rate ?? "—"}</p>
                 </div>
                 <div>
@@ -398,7 +398,7 @@ export default function SystemSettings() {
             <Field label="BCV (Bs/USD)">
               <Input type="number" step={0.0001} placeholder="36.50" value={bcvInput} onChange={(e) => setBcvInput(e.target.value)} />
             </Field>
-            <Field label="Paralela (Bs/USD)">
+            <Field label="Euro BCV (Bs/USD)">
               <Input type="number" step={0.0001} placeholder="40.00" value={parallelInput} onChange={(e) => setParallelInput(e.target.value)} />
             </Field>
           </div>

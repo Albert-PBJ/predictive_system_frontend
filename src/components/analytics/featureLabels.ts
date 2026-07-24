@@ -40,9 +40,9 @@ const HINTS: Record<string, string> = {
   categoria: "Categoría del mueble (codificada): el modelo aprende patrones distintos por tipo de producto.",
   precio_base: "Precio de lista del producto en USD.",
   shock_cambiario:
-    "Devaluación de la tasa paralela por encima de su ritmo reciente: capta las caídas de demanda por saltos cambiarios bruscos.",
+    "Devaluación de la tasa Euro BCV por encima de su ritmo reciente: capta las caídas de demanda por saltos cambiarios bruscos.",
   rate_shock:
-    "Devaluación de la tasa paralela por encima de su ritmo reciente, en el mes en que se emitió el presupuesto.",
+    "Devaluación de la tasa Euro BCV por encima de su ritmo reciente, en el mes en que se emitió el presupuesto.",
   total_usd: "Monto total del presupuesto en USD.",
   n_items: "Número de ítems (líneas) del presupuesto.",
   includes_installation: "Si el presupuesto incluye el servicio de instalación.",

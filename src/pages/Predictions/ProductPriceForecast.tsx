@@ -35,7 +35,7 @@ export default function ProductPriceForecast() {
     if (!last || last.value_ves == null) return null;
     return (
       <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-        Equivalente estimado en {last.label}: <strong>{fmtVES(last.value_ves)}</strong> (precio USD × tasa paralela
+        Equivalente estimado en {last.label}: <strong>{fmtVES(last.value_ves)}</strong> (precio USD × tasa Euro BCV
         pronosticada).
       </p>
     );

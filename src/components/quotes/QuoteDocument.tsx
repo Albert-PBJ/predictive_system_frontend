@@ -222,6 +222,9 @@ export default function QuoteDocument({ quote, company }: QuoteDocumentProps) {
           <Text style={styles.notesText}>
             • Este presupuesto es una oferta de precios sujeta a disponibilidad y no constituye una factura.
           </Text>
+          <Text style={styles.notesText}>
+            • No válido para uso fiscal.
+          </Text>
         </View>
 
         <View style={styles.footer} fixed>

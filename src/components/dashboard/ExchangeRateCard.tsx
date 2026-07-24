@@ -11,7 +11,7 @@ import { fmtVES, fmtPct } from "../../utils/format";
 export default function ExchangeRateCard({ data }: { data: ExchangeRateBlock | null }) {
   if (!data) {
     return (
-      <ChartCard title="Contexto cambiario" subtitle="Tasa BCV y paralela del periodo">
+      <ChartCard title="Contexto cambiario" subtitle="Tasa BCV y Euro BCV del periodo">
         <p className="py-8 text-center text-sm text-gray-400">Sin tasas registradas en el rango.</p>
       </ChartCard>
     );
@@ -20,7 +20,7 @@ export default function ExchangeRateCard({ data }: { data: ExchangeRateBlock | n
   const categories = data.series.map((p) => p.label);
   const series = [
     { name: "BCV", data: data.series.map((p) => p.bcv ?? 0), color: "#465fff" },
-    { name: "Paralela", data: data.series.map((p) => p.parallel ?? 0), color: "#f79009" },
+    { name: "Euro BCV", data: data.series.map((p) => p.parallel ?? 0), color: "#f79009" },
   ];
 
   const Metric = ({ label, value, pct }: { label: string; value: string; pct: number | null }) => {
@@ -39,10 +39,10 @@ export default function ExchangeRateCard({ data }: { data: ExchangeRateBlock | n
   };
 
   return (
-    <ChartCard title="Contexto cambiario" subtitle="Tasa BCV y paralela (Bs/USD) del periodo">
+    <ChartCard title="Contexto cambiario" subtitle="Tasa BCV y Euro BCV (Bs/USD) del periodo">
       <div className="mb-4 grid grid-cols-2 gap-4">
         <Metric label="BCV al cierre" value={fmtVES(data.end_bcv)} pct={data.bcv_change_pct} />
-        <Metric label="Paralela al cierre" value={fmtVES(data.end_parallel)} pct={data.parallel_change_pct} />
+        <Metric label="Euro BCV al cierre" value={fmtVES(data.end_parallel)} pct={data.parallel_change_pct} />
       </div>
       <LineChart
         categories={categories}

@@ -10,9 +10,11 @@ import {
   salesService,
   PAYMENT_METHODS,
   type Sale,
+  type SalePayment,
 } from "../../services/salesService";
 import { getApiError } from "../../services/apiError";
 import { fmtUSD, todayISO } from "../../utils/format";
+import { downloadPaymentReceiptPdf } from "./downloadPaymentReceipt";
 
 interface Props {
   isOpen: boolean;
@@ -32,12 +34,15 @@ export default function PaymentModal({ isOpen, onClose, sale, onPaid }: Props) {
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Resultado del abono ya registrado: pantalla de éxito con descarga de recibos.
+  const [result, setResult] = useState<{ sale: Sale; payment: SalePayment } | null>(null);
 
   const balance = sale ? Number(sale.balance_usd) : 0;
 
   useEffect(() => {
     if (!isOpen || !sale) return;
     setError(null);
+    setResult(null);
     setAmount("");
     setMethod("EFE");
     setReference("");
@@ -69,8 +74,18 @@ export default function PaymentModal({ isOpen, onClose, sale, onPaid }: Props) {
         reference: reference.trim(),
         notes: notes.trim(),
       });
-      onPaid(updated);
-      onClose();
+      // El abono recién creado es el de mayor id en la venta actualizada. Se guarda
+      // para ofrecer la descarga de sus recibos en la pantalla de éxito.
+      const newPayment = updated.payments.reduce<SalePayment | null>(
+        (latest, p) => (latest === null || p.id > latest.id ? p : latest),
+        null,
+      );
+      onPaid(updated); // el padre refresca su detalle/listado en segundo plano
+      if (newPayment) {
+        setResult({ sale: updated, payment: newPayment });
+      } else {
+        onClose(); // sin el pago devuelto no hay recibo que ofrecer
+      }
     } catch (err) {
       setError(getApiError(err, "No se pudo registrar el abono."));
     } finally {
@@ -80,7 +95,11 @@ export default function PaymentModal({ isOpen, onClose, sale, onPaid }: Props) {
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} className="m-4 max-w-lg">
-      <div className="p-6 sm:p-8">
+      <div className="max-h-[85vh] overflow-y-auto p-6 sm:p-8">
+        {result ? (
+          <PaymentSuccess sale={result.sale} payment={result.payment} onClose={onClose} />
+        ) : (
+        <>
         <h3 className="mb-1 text-lg font-semibold text-gray-800 dark:text-white/90">
           Registrar abono · Venta #{sale.id}
         </h3>
@@ -165,7 +184,66 @@ export default function PaymentModal({ isOpen, onClose, sale, onPaid }: Props) {
             {submitting ? "Guardando…" : "Registrar abono"}
           </Button>
         </div>
+        </>
+        )}
       </div>
     </Modal>
+  );
+}
+
+// Pantalla de éxito tras registrar el abono: confirma el pago y ofrece descargar el
+// recibo en sus dos variantes (copia cliente / copia control interno).
+function PaymentSuccess({
+  sale,
+  payment,
+  onClose,
+}: {
+  sale: Sale;
+  payment: SalePayment;
+  onClose: () => void;
+}) {
+  const [busy, setBusy] = useState<"cliente" | "interno" | null>(null);
+
+  const download = async (variant: "cliente" | "interno") => {
+    setBusy(variant);
+    try {
+      await downloadPaymentReceiptPdf(sale, payment, variant);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <>
+      <Alert
+        variant="success"
+        title="Abono registrado"
+        message={`Se registró un abono de ${fmtUSD(payment.amount_usd)} a la venta #${sale.id}. ${
+          sale.is_fully_paid
+            ? "La venta quedó pagada en su totalidad."
+            : `Saldo pendiente: ${fmtUSD(sale.balance_usd)}.`
+        }`}
+      />
+
+      <div className="mt-5 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+        <p className="mb-1 text-sm font-medium text-gray-800 dark:text-white/90">Recibos de pago</p>
+        <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+          Descarga el comprobante de este abono: la copia para entregar al cliente y la copia para el
+          control interno de la empresa.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <Button variant="outline" onClick={() => download("cliente")} disabled={busy !== null}>
+            {busy === "cliente" ? "Generando…" : "Recibo (cliente)"}
+          </Button>
+          <Button variant="outline" onClick={() => download("interno")} disabled={busy !== null}>
+            {busy === "interno" ? "Generando…" : "Recibo (interno)"}
+          </Button>
+        </div>
+      </div>
+
+      <div className="mt-6 flex justify-end">
+        <Button onClick={onClose}>Cerrar</Button>
+      </div>
+    </>
   );
 }
