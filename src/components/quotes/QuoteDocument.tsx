@@ -108,6 +108,10 @@ export default function QuoteDocument({ quote, company }: QuoteDocumentProps) {
   const ivaPct = Number(quote.iva_rate ?? 0);
   const totalVes = VES(quote.total_ves);
   const subtotalVes = VES(quote.subtotal_ves);
+  // Cargos adicionales (instalación / despacho-flete): se muestran como renglones
+  // entre el subtotal de productos y el IVA (ya están sumados en la base y el total).
+  const installUsd = Number(quote.installation_cost_usd ?? 0);
+  const deliveryUsd = Number(quote.delivery_cost_usd ?? 0);
 
   // Líneas del encabezado de la empresa: dirección, teléfono(s), correo y RIF·web (lo
   // que esté configurado). Si no hay nada, una glosa por defecto.
@@ -190,6 +194,18 @@ export default function QuoteDocument({ quote, company }: QuoteDocumentProps) {
               <View style={styles.vesRow}>
                 <Text style={styles.vesText}>Subtotal (VES)</Text>
                 <Text style={styles.vesText}>{subtotalVes}</Text>
+              </View>
+            ) : null}
+            {installUsd > 0 ? (
+              <View style={styles.totalRow}>
+                <Text style={styles.totalLabel}>Instalación</Text>
+                <Text style={styles.totalValue}>{USD(installUsd)}</Text>
+              </View>
+            ) : null}
+            {deliveryUsd > 0 ? (
+              <View style={styles.totalRow}>
+                <Text style={styles.totalLabel}>Despacho / flete</Text>
+                <Text style={styles.totalValue}>{USD(deliveryUsd)}</Text>
               </View>
             ) : null}
             <View style={styles.totalRow}>

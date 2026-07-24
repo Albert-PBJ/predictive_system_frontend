@@ -44,8 +44,9 @@ export default function CreateQuote() {
   const [expiryDate, setExpiryDate] = useState("");
   const [ivaRate, setIvaRate] = useState("16");
   const [statusValue, setStatusValue] = useState("DRA");
-  const [installation, setInstallation] = useState(false);
-  const [delivery, setDelivery] = useState(false);
+  // Cargos adicionales (USD): se suman a la base imponible y al total. 0 = sin cargo.
+  const [installationCost, setInstallationCost] = useState("");
+  const [deliveryCost, setDeliveryCost] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
 
   const [rate, setRate] = useState<LatestRate | null>(null);
@@ -80,9 +81,13 @@ export default function CreateQuote() {
   const effectiveRate = rate ? Number(rate.effective_rate) : null;
   const lineTotal = (l: Line) => l.quantity * (Number(l.unitPrice) || 0);
   const subtotalUSD = useMemo(() => lines.reduce((a, l) => a + lineTotal(l), 0), [lines]);
+  // Cargos: la base imponible es productos + instalación + despacho; el IVA va sobre esa base.
+  const installUSD = Math.max(0, Number(installationCost) || 0);
+  const deliveryUSD = Math.max(0, Number(deliveryCost) || 0);
+  const baseUSD = subtotalUSD + installUSD + deliveryUSD;
   const ivaPct = Number(ivaRate) || 0;
-  const ivaUSD = (subtotalUSD * ivaPct) / 100;
-  const totalUSD = subtotalUSD + ivaUSD;
+  const ivaUSD = (baseUSD * ivaPct) / 100;
+  const totalUSD = baseUSD + ivaUSD;
   const totalVES = effectiveRate !== null ? totalUSD * effectiveRate : null;
 
   const lineError = (l: Line): string | null => {
@@ -110,8 +115,8 @@ export default function CreateQuote() {
       issued_date: issuedDate,
       expiry_date: expiryDate || null,
       iva_rate: Number(ivaRate) || 0,
-      includes_installation: installation,
-      includes_delivery: delivery,
+      installation_cost_usd: installUSD,
+      delivery_cost_usd: deliveryUSD,
       status: statusValue,
       items: lines.map((l) => ({
         product: l.product.id,
@@ -135,8 +140,8 @@ export default function CreateQuote() {
     setExpiryDate("");
     setIvaRate("16");
     setStatusValue("DRA");
-    setInstallation(false);
-    setDelivery(false);
+    setInstallationCost("");
+    setDeliveryCost("");
     setLines([]);
     setError(null);
     setResult(null);
@@ -166,6 +171,12 @@ export default function CreateQuote() {
           />
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <Summary label="Subtotal (USD)" value={fmtUSD(result.subtotal_usd)} />
+            {Number(result.installation_cost_usd) > 0 && (
+              <Summary label="Instalación (USD)" value={fmtUSD(result.installation_cost_usd)} />
+            )}
+            {Number(result.delivery_cost_usd) > 0 && (
+              <Summary label="Despacho / flete (USD)" value={fmtUSD(result.delivery_cost_usd)} />
+            )}
             <Summary label={`IVA (${Number(result.iva_rate)}%)`} value={fmtUSD(result.iva_amount_usd)} />
             <Summary label="Total (USD)" value={fmtUSD(result.total_usd)} />
             <Summary label="Total (VES)" value={fmtVES(result.total_ves)} />
@@ -307,15 +318,34 @@ export default function CreateQuote() {
               <Label>Estado</Label>
               <Select options={QUOTE_STATUSES} defaultValue={statusValue} onChange={setStatusValue} />
             </div>
-            <div className="space-y-2 pt-1">
-              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                <input type="checkbox" checked={installation} onChange={(e) => setInstallation(e.target.checked)} className="size-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500/20" />
-                Incluye instalación
-              </label>
-              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                <input type="checkbox" checked={delivery} onChange={(e) => setDelivery(e.target.checked)} className="size-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500/20" />
-                Incluye despacho / flete
-              </label>
+            <div className="grid grid-cols-1 gap-4 pt-1 sm:grid-cols-2">
+              <div>
+                <Label>Instalación (USD)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step={0.01}
+                  value={installationCost}
+                  onChange={(e) => setInstallationCost(e.target.value)}
+                  placeholder="0.00"
+                  disabled={submitting}
+                />
+              </div>
+              <div>
+                <Label>Despacho / flete (USD)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step={0.01}
+                  value={deliveryCost}
+                  onChange={(e) => setDeliveryCost(e.target.value)}
+                  placeholder="0.00"
+                  disabled={submitting}
+                />
+              </div>
+              <p className="text-xs text-gray-400 sm:col-span-2">
+                Cargos opcionales. Se suman a la base imponible (llevan IVA). Deja en 0 si no aplican.
+              </p>
             </div>
           </ComponentCard>
 
@@ -324,6 +354,11 @@ export default function CreateQuote() {
               <Row label="Productos" value={`${lines.length} línea(s)`} />
               <Row label="Unidades" value={`${lines.reduce((a, l) => a + l.quantity, 0)}`} />
               <Row label="Subtotal (USD)" value={fmtUSD(subtotalUSD)} />
+              {installUSD > 0 && <Row label="Instalación (USD)" value={fmtUSD(installUSD)} />}
+              {deliveryUSD > 0 && <Row label="Despacho / flete (USD)" value={fmtUSD(deliveryUSD)} />}
+              {(installUSD > 0 || deliveryUSD > 0) && (
+                <Row label="Base imponible (USD)" value={fmtUSD(baseUSD)} />
+              )}
               <Row label={`IVA (${ivaPct}%)`} value={fmtUSD(ivaUSD)} />
               <div className="border-t border-gray-100 pt-3 dark:border-gray-800">
                 <div className="flex items-center justify-between">

@@ -63,6 +63,9 @@ export default function RegisterSale() {
   const [fullyPaid, setFullyPaid] = useState(true);
   const [amountPaid, setAmountPaid] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("EFE");
+  // Cargos adicionales (USD): instalación y despacho/flete. Se suman a la base imponible.
+  const [installationCost, setInstallationCost] = useState("");
+  const [deliveryCost, setDeliveryCost] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
 
   const [rate, setRate] = useState<LatestRate | null>(null);
@@ -145,6 +148,9 @@ export default function RegisterSale() {
       setCustomer(cust);
       setLines(newLines);
       setSaleType("INST"); // los presupuestos suelen ser de proyecto/institucional
+      // Hereda los cargos de instalación/despacho del presupuesto (editables).
+      setInstallationCost(Number(q.installation_cost_usd) > 0 ? String(Number(q.installation_cost_usd)) : "");
+      setDeliveryCost(Number(q.delivery_cost_usd) > 0 ? String(Number(q.delivery_cost_usd)) : "");
       setLinkedQuote(q);
     } catch (err) {
       setError(getApiError(err, "No se pudo cargar el presupuesto."));
@@ -207,9 +213,13 @@ export default function RegisterSale() {
     () => lines.reduce((acc, l) => acc + lineDiscount(l), 0),
     [lines],
   );
-  // Desglose de IVA sobre la base imponible (subtotal). El total a pagar lo incluye.
-  const ivaUSD = subtotalUSD * (ivaPct / 100);
-  const totalWithIvaUSD = subtotalUSD + ivaUSD;
+  // Cargos: la base imponible es productos + instalación + despacho; el IVA va sobre esa
+  // base y el total a pagar la incluye.
+  const installUSD = Math.max(0, Number(installationCost) || 0);
+  const deliveryUSD = Math.max(0, Number(deliveryCost) || 0);
+  const baseUSD = subtotalUSD + installUSD + deliveryUSD;
+  const ivaUSD = baseUSD * (ivaPct / 100);
+  const totalWithIvaUSD = baseUSD + ivaUSD;
   const totalWithIvaVES = effectiveRate !== null ? totalWithIvaUSD * effectiveRate : null;
 
   const lineError = (l: Line): string | null => {
@@ -268,6 +278,9 @@ export default function RegisterSale() {
       ...(fullyPaid
         ? {}
         : { amount_paid: amountPaid.trim() === "" ? 0 : paidNum, payment_method: paymentMethod }),
+      // Cargos adicionales (se omiten si son 0).
+      ...(installUSD > 0 ? { installation_cost_usd: installUSD } : {}),
+      ...(deliveryUSD > 0 ? { delivery_cost_usd: deliveryUSD } : {}),
       notes: notes.trim(),
       // Relaciona la venta con el presupuesto (hereda su IVA) o, si no, aplica el IVA
       // por defecto de la Configuración — el mismo que se mostró (WYSIWYG). Si no se
@@ -330,6 +343,8 @@ export default function RegisterSale() {
     setFullyPaid(true);
     setAmountPaid("");
     setPaymentMethod("EFE");
+    setInstallationCost("");
+    setDeliveryCost("");
     setNotes("");
     setLines([]);
     setLinkedQuote(null);
@@ -362,7 +377,13 @@ export default function RegisterSale() {
             <Alert variant="warning" title="Factura pendiente" message={invoiceWarning} />
           )}
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6">
-            <Summary label="Base imponible" value={fmtUSD(result.total_sale_usd)} />
+            <Summary label="Productos (base)" value={fmtUSD(result.total_sale_usd)} />
+            {Number(result.installation_cost_usd) > 0 && (
+              <Summary label="Instalación (USD)" value={fmtUSD(result.installation_cost_usd)} />
+            )}
+            {Number(result.delivery_cost_usd) > 0 && (
+              <Summary label="Despacho / flete (USD)" value={fmtUSD(result.delivery_cost_usd)} />
+            )}
             <Summary label={`IVA (${Number(result.iva_rate)}%)`} value={fmtUSD(result.iva_amount_usd)} />
             <Summary label="Total con IVA (USD)" value={fmtUSD(result.total_with_iva_usd)} />
             <Summary label="Total con IVA (VES)" value={fmtVES(result.total_with_iva_ves)} />
@@ -647,6 +668,38 @@ export default function RegisterSale() {
               )}
             </div>
 
+            {/* Cargos adicionales (instalación / despacho-flete): se suman a la base imponible */}
+            <div>
+              <Label>Cargos adicionales (opcional)</Label>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <Input
+                    type="number"
+                    min="0"
+                    step={0.01}
+                    value={installationCost}
+                    onChange={(e) => setInstallationCost(e.target.value)}
+                    placeholder="Instalación (USD)"
+                    disabled={submitting}
+                  />
+                </div>
+                <div>
+                  <Input
+                    type="number"
+                    min="0"
+                    step={0.01}
+                    value={deliveryCost}
+                    onChange={(e) => setDeliveryCost(e.target.value)}
+                    placeholder="Despacho / flete (USD)"
+                    disabled={submitting}
+                  />
+                </div>
+              </div>
+              <p className="mt-1 text-xs text-gray-400">
+                Instalación y despacho/flete. Se suman a la base imponible (llevan IVA). Deja en 0 si no aplican.
+              </p>
+            </div>
+
             <div>
               <Label>Notas</Label>
               <TextArea rows={3} value={notes} onChange={setNotes} placeholder="Observaciones (opcional)" />
@@ -724,7 +777,10 @@ export default function RegisterSale() {
               {totalDiscountUSD > 0 && (
                 <Row label="Descuento" value={`− ${fmtUSD(totalDiscountUSD)}`} />
               )}
-              <Row label="Base imponible (USD)" value={fmtUSD(subtotalUSD)} />
+              <Row label="Subtotal productos (USD)" value={fmtUSD(subtotalUSD)} />
+              {installUSD > 0 && <Row label="Instalación (USD)" value={fmtUSD(installUSD)} />}
+              {deliveryUSD > 0 && <Row label="Despacho / flete (USD)" value={fmtUSD(deliveryUSD)} />}
+              <Row label="Base imponible (USD)" value={fmtUSD(baseUSD)} />
               <Row label={`IVA (${ivaPct}%)`} value={fmtUSD(ivaUSD)} />
               <div className="border-t border-gray-100 pt-3 dark:border-gray-800">
                 <div className="flex items-center justify-between">

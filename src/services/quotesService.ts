@@ -32,6 +32,9 @@ export interface Quote {
   parallel_rate: string | null;
   includes_installation: boolean;
   includes_delivery: boolean;
+  // Cargos adicionales (instalación / despacho-flete): se suman a la base y al total.
+  installation_cost_usd: string;
+  delivery_cost_usd: string;
   subtotal_usd: string;
   subtotal_ves: string | null;
   iva_rate: string;
@@ -58,8 +61,10 @@ export interface NewQuote {
   issued_date?: string;
   expiry_date?: string | null;
   iva_rate?: string | number;
-  includes_installation?: boolean;
-  includes_delivery?: boolean;
+  // Cargos adicionales opcionales (instalación / despacho-flete) en USD. Los booleanos
+  // includes_* los deriva el backend de que el costo sea > 0.
+  installation_cost_usd?: string | number;
+  delivery_cost_usd?: string | number;
   status?: string;
   items: NewQuoteItem[];
 }

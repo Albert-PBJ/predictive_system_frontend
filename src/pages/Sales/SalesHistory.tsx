@@ -397,7 +397,13 @@ export default function SalesHistory() {
             </div>
 
             <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-              <Field label="Base imponible" value={fmtUSD(selected.total_sale_usd)} />
+              <Field label="Productos (base)" value={fmtUSD(selected.total_sale_usd)} />
+              {Number(selected.installation_cost_usd) > 0 && (
+                <Field label="Instalación" value={fmtUSD(selected.installation_cost_usd)} />
+              )}
+              {Number(selected.delivery_cost_usd) > 0 && (
+                <Field label="Despacho / flete" value={fmtUSD(selected.delivery_cost_usd)} />
+              )}
               <Field label={`IVA (${Number(selected.iva_rate)}%)`} value={fmtUSD(selected.iva_amount_usd)} />
               <Field label="Total con IVA" value={fmtUSD(selected.total_with_iva_usd)} />
               <Field label="Total con IVA (VES)" value={fmtVES(selected.total_with_iva_ves)} />

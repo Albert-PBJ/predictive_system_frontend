@@ -355,21 +355,16 @@ export default function QuotesList() {
 
             <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <Field label="Subtotal" value={fmtUSD(selected.subtotal_usd)} />
+              {Number(selected.installation_cost_usd) > 0 && (
+                <Field label="Instalación" value={fmtUSD(selected.installation_cost_usd)} />
+              )}
+              {Number(selected.delivery_cost_usd) > 0 && (
+                <Field label="Despacho / flete" value={fmtUSD(selected.delivery_cost_usd)} />
+              )}
               <Field label={`IVA (${Number(selected.iva_rate)}%)`} value={fmtUSD(selected.iva_amount_usd)} />
               <Field label="Total (USD)" value={fmtUSD(selected.total_usd)} />
               <Field label="Total (VES)" value={fmtVES(selected.total_ves)} />
             </div>
-
-            {(selected.includes_installation || selected.includes_delivery) && (
-              <div className="mt-4 flex flex-wrap gap-2">
-                {selected.includes_installation && (
-                  <Badge variant="light" color="info" size="sm">Incluye instalación</Badge>
-                )}
-                {selected.includes_delivery && (
-                  <Badge variant="light" color="info" size="sm">Incluye despacho</Badge>
-                )}
-              </div>
-            )}
 
             {selected.converted_to_sale && (
               <div className="mt-4">

@@ -47,6 +47,10 @@ export interface Sale {
   total_cost_usd: string;
   total_profit_usd: string;
   total_discount_usd: string;
+  // Cargos adicionales (instalación / despacho-flete): se suman a la base imponible y
+  // al total a pagar, pero no a la utilidad/comisión ni a la analítica de ingresos.
+  installation_cost_usd: string;
+  delivery_cost_usd: string;
   total_sale_ves: string | null;
   // Desglose de IVA (la base imponible es total_sale_usd; el total a pagar, con IVA).
   iva_rate: string;
@@ -109,6 +113,9 @@ export interface NewSale {
   sale_type?: string;
   notes?: string;
   iva_rate?: string | number;
+  // Cargos adicionales opcionales (instalación / despacho-flete) en USD.
+  installation_cost_usd?: string | number;
+  delivery_cost_usd?: string | number;
   // Cobranza: el estado (Pendiente/Completada) se deriva del pago. `fully_paid=true`
   // (por defecto) = venta cobrada completa; si es false, `amount_paid` es el abono
   // inicial (0 = a crédito) y `payment_method` su medio.
