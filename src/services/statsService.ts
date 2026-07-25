@@ -3,6 +3,7 @@
 // (`dashboard`) es accesible a todo el personal; el resto requiere Gerente/Admin.
 
 import { api } from "./api";
+import type { PendingDispatchRow } from "./dispatchService";
 
 // --- Tipos compartidos ---
 export interface StateCount {
@@ -283,6 +284,23 @@ export interface RestockRow {
   status: "out" | "low";
 }
 
+// Movimiento reciente de inventario mostrado en el panel de inventario, con su estado
+// de verificación de almacén.
+export interface WarehouseMovementRow {
+  id: number;
+  movement_date: string;
+  product_name: string;
+  product_sku: string | null;
+  movement_type: string;
+  movement_type_display: string;
+  quantity: number;
+  reference: string;
+  responsible_name: string | null;
+  verified: boolean;
+  verified_by_name: string | null;
+  verified_at: string | null;
+}
+
 export interface WarehouseDashboard {
   range: StatsRange;
   scope: { type: "warehouse"; label: string };
@@ -293,6 +311,9 @@ export interface WarehouseDashboard {
   restock_count: number;
   no_demand: NoDemandRow[];
   no_demand_count: number;
+  recent_movements: WarehouseMovementRow[];
+  pending_dispatch: PendingDispatchRow[];
+  pending_dispatch_count: number;
   alerts: DashboardAlert[];
 }
 

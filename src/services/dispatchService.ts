@@ -66,6 +66,26 @@ export interface DispatchListParams {
   page_size?: number;
 }
 
+// Venta con despacho incluido (delivery_cost_usd > 0) del mes actual que aún no tiene
+// orden de despacho: alimenta la tabla de "despachos pendientes" (panel de inventario
+// + pantalla de órdenes de despacho).
+export interface PendingDispatchRow {
+  id: number;
+  sale_date: string;
+  customer_name: string;
+  seller_name: string;
+  delivery_cost_usd: string;
+  installation_cost_usd: string;
+  total_with_iva_usd: string;
+  items: number;
+}
+
+export interface PendingDispatchResponse {
+  results: PendingDispatchRow[];
+  count: number;
+  month_label: string;
+}
+
 export const dispatchService = {
   async list(params: DispatchListParams = {}): Promise<Paginated<DispatchOrder>> {
     const { data } = await api.get<Paginated<DispatchOrder>>("/dispatch-orders/", { params });
@@ -85,6 +105,12 @@ export const dispatchService = {
   // Actualiza estado / datos de entrega. Nota la barra final de la acción DRF.
   async updateStatus(id: number, payload: DispatchStatusUpdate): Promise<DispatchOrder> {
     const { data } = await api.post<DispatchOrder>(`/dispatch-orders/${id}/estado/`, payload);
+    return data;
+  },
+
+  // Ventas del mes con despacho incluido y sin orden de despacho aún (endpoint en /sales/).
+  async pendingDispatch(): Promise<PendingDispatchResponse> {
+    const { data } = await api.get<PendingDispatchResponse>("/sales/pendientes-despacho/");
     return data;
   },
 };

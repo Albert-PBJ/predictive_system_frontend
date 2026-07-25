@@ -26,9 +26,10 @@ import {
   DISPATCH_STATUSES,
   dispatchStatusColor,
   type DispatchOrder,
+  type PendingDispatchRow,
 } from "../../services/dispatchService";
 import { getApiError } from "../../services/apiError";
-import { fmtDate } from "../../utils/format";
+import { fmtDate, fmtUSD } from "../../utils/format";
 import { OPERATIONAL_ROLES } from "../../services/types";
 import { downloadDispatchPdf } from "../../components/dispatch/downloadDispatch";
 
@@ -52,6 +53,10 @@ export default function DispatchOrders() {
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Ventas del mes con despacho incluido y aún sin orden de despacho.
+  const [pending, setPending] = useState<PendingDispatchRow[]>([]);
+  const [pendingMonth, setPendingMonth] = useState("");
 
   const [selected, setSelected] = useState<DispatchOrder | null>(null);
   const [newStatus, setNewStatus] = useState("");
@@ -97,6 +102,22 @@ export default function DispatchOrders() {
   }, [page, debouncedSearch, statusFilter, saleFilter]);
 
   useEffect(() => load(), [load]);
+
+  // Carga (una vez al montar) las ventas del mes pendientes de despacho.
+  useEffect(() => {
+    let active = true;
+    dispatchService
+      .pendingDispatch()
+      .then((res) => {
+        if (!active) return;
+        setPending(res.results);
+        setPendingMonth(res.month_label);
+      })
+      .catch(() => active && setPending([]));
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const numPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
 
@@ -147,6 +168,51 @@ export default function DispatchOrders() {
     <>
       <PageMeta title="Órdenes de despacho" description="Control de entregas de mercancía" />
       <PageBreadcrumb pageTitle="Órdenes de despacho" />
+
+      {/* Ventas del mes con despacho incluido y aún sin orden de despacho generada */}
+      {pending.length > 0 && (
+        <div className="mb-6">
+          <ComponentCard
+            title="Despachos pendientes"
+            desc={`${pending.length} venta(s) de ${pendingMonth || "este mes"} con despacho incluido sin orden de despacho`}
+          >
+            <div className="max-w-full overflow-x-auto">
+              <Table>
+                <TableHeader className="border-b border-gray-100 dark:border-gray-800">
+                  <TableRow>
+                    {["Venta", "Fecha", "Cliente", "Vendedor", "Despacho", "Total", ""].map((h) => (
+                      <TableCell key={h} isHeader className="px-4 py-3 text-left text-theme-xs font-medium text-gray-500 dark:text-gray-400">
+                        {h}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {pending.map((s) => (
+                    <TableRow key={s.id}>
+                      <TableCell className="px-4 py-3 text-sm font-medium text-gray-800 dark:text-white/90">#{s.id}</TableCell>
+                      <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{fmtDate(s.sale_date)}</TableCell>
+                      <TableCell className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{s.customer_name}</TableCell>
+                      <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{s.seller_name}</TableCell>
+                      <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{fmtUSD(s.delivery_cost_usd)}</TableCell>
+                      <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{fmtUSD(s.total_with_iva_usd)}</TableCell>
+                      <TableCell className="px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/ventas/historial?sale=${s.id}`)}
+                          className="text-sm font-medium text-brand-500 hover:text-brand-600"
+                        >
+                          Generar despacho
+                        </button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </ComponentCard>
+        </div>
+      )}
 
       <ComponentCard title="Órdenes de despacho">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">

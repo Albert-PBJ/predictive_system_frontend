@@ -39,6 +39,12 @@ export interface Movement {
   responsible_name: string | null;
   movement_date: string;
   notes: string;
+  // Verificación por almacén: confirma que el cambio físico ocurrió (solo la marca
+  // el encargado de inventario o el admin).
+  verified: boolean;
+  verified_by: number | null;
+  verified_by_name: string | null;
+  verified_at: string | null;
   created_at: string;
 }
 
@@ -82,6 +88,13 @@ export const inventoryService = {
 
   async createMovement(payload: NewMovement): Promise<Movement> {
     const { data } = await api.post<Movement>("/inventory/movements/", payload);
+    return data;
+  },
+
+  // Marca (o desmarca) un movimiento como verificado por almacén. Solo el encargado
+  // de inventario o el admin pueden hacerlo (lo aplica el backend). Nota la barra final.
+  async verifyMovement(id: number, verified = true): Promise<Movement> {
+    const { data } = await api.post<Movement>(`/inventory/movements/${id}/verificar/`, { verified });
     return data;
   },
 };

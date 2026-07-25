@@ -40,6 +40,10 @@ export default function StockControl() {
   // queda para el encargado de inventario o superior.
   const { hasRole } = useAuth();
   const canManageStock = hasRole(...CAN_MANAGE_STOCK);
+  // Verificar un movimiento (confirmar que ocurrió físicamente) es solo del encargado
+  // de inventario y el admin (mismo criterio que el backend `IsStockVerifier`).
+  const canVerify = hasRole("ADMIN", "WAREHOUSE");
+  const [verifyingId, setVerifyingId] = useState<number | null>(null);
 
   // ── Tabla de stock ──
   const [search, setSearch] = useState("");
@@ -176,6 +180,19 @@ export default function StockControl() {
   };
 
   const onSaved = () => setReloadToken((t) => t + 1);
+
+  // Verifica/desverifica un movimiento y actualiza la fila en la tabla al instante.
+  const toggleVerify = async (m: Movement, next: boolean) => {
+    setVerifyingId(m.id);
+    try {
+      const updated = await inventoryService.verifyMovement(m.id, next);
+      setMovements((prev) => prev.map((x) => (x.id === m.id ? updated : x)));
+    } catch {
+      /* best-effort: si falla, la fila queda como estaba */
+    } finally {
+      setVerifyingId(null);
+    }
+  };
 
   const typeBadgeColor = (t: string): "success" | "error" | "warning" | "info" => {
     if (t === "ENT" || t === "DEV") return "success";
@@ -360,7 +377,7 @@ export default function StockControl() {
             <Table>
               <TableHeader className="border-b border-gray-100 dark:border-gray-800">
                 <TableRow>
-                  {["Fecha", "Producto", "Tipo", "Cantidad", "Costo/u", "Referencia", "Responsable"].map((h) => (
+                  {["Fecha", "Producto", "Tipo", "Cantidad", "Costo/u", "Referencia", "Responsable", "Verificación"].map((h) => (
                     <TableCell key={h} isHeader className="px-4 py-3 text-left text-theme-xs font-medium text-gray-500 dark:text-gray-400">
                       {h}
                     </TableCell>
@@ -403,6 +420,29 @@ export default function StockControl() {
                       </TableCell>
                       <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{m.reference || "—"}</TableCell>
                       <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{m.responsible_name ?? "—"}</TableCell>
+                      <TableCell className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          {m.verified ? (
+                            <Badge variant="light" color="success" size="sm">
+                              Verificado{m.verified_by_name ? ` · ${m.verified_by_name}` : ""}
+                            </Badge>
+                          ) : (
+                            <Badge variant="light" color="warning" size="sm">
+                              Pendiente
+                            </Badge>
+                          )}
+                          {canVerify && (
+                            <button
+                              type="button"
+                              onClick={() => toggleVerify(m, !m.verified)}
+                              disabled={verifyingId === m.id}
+                              className="text-xs font-medium text-brand-500 hover:text-brand-600 disabled:opacity-50"
+                            >
+                              {verifyingId === m.id ? "…" : m.verified ? "Quitar" : "Verificar"}
+                            </button>
+                          )}
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
