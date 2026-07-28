@@ -109,6 +109,17 @@ export default function ForecastView({
 
         {error && <Alert variant="error" title="Error" message={error} />}
 
+        {/* Fecha de corte: deja explícito hasta dónde llegan los datos reales usados para
+            entrenar y desde qué mes todo es pronóstico. */}
+        {data?.training_cutoff?.active && (
+          <p className="mb-4 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:bg-white/[0.03] dark:text-gray-400">
+            Entrenado con datos hasta <strong>{data.training_cutoff.effective_label}</strong> (
+            {data.training_cutoff.effective}); los meses posteriores son pronóstico.
+            {data.training_cutoff.adjusted &&
+              ` La fecha configurada (${data.training_cutoff.configured}) se ajustó al último mes cerrado.`}
+          </p>
+        )}
+
         {loading ? (
           <div className="flex h-72 items-center justify-center gap-3 text-sm text-gray-500 dark:text-gray-400">
             <Spinner /> Calculando pronóstico…

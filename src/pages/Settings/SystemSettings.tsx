@@ -515,6 +515,53 @@ export default function SystemSettings() {
           </div>
         </ComponentCard>
 
+        {/* ── Módulo predictivo ──────────────────────────────────────── */}
+        <ComponentCard
+          title="Módulo predictivo"
+          desc="Hasta dónde deben mirar los modelos al entrenarse."
+        >
+          <Field
+            label="Entrenar con datos hasta (fecha de corte)"
+            help="Los datos posteriores a esta fecha se excluyen del entrenamiento y esos meses pasan a pronosticarse. Útil cuando hay cargas de prueba o un mes en curso que no deben contaminar los modelos. Vacío = usar todo el historial."
+          >
+            <Input
+              type="date"
+              value={str("training_cutoff_date")}
+              onChange={(e) => set("training_cutoff_date", e.target.value)}
+            />
+          </Field>
+          <div className="rounded-lg bg-gray-50 p-4 text-sm dark:bg-white/[0.03]">
+            <p className="text-gray-700 dark:text-gray-300">
+              {meta?.training_data.cutoff.active ? (
+                <>
+                  Corte vigente:{" "}
+                  <strong>
+                    {meta.training_data.cutoff.effective_label} ({meta.training_data.cutoff.effective})
+                  </strong>
+                  .
+                </>
+              ) : (
+                <>Sin corte: los modelos usan todo el historial disponible.</>
+              )}
+            </p>
+            {meta?.training_data.cutoff.adjusted ? (
+              <p className="mt-1 text-xs text-warning-600">
+                La fecha configurada ({meta.training_data.cutoff.configured}) cae a mitad de mes; como
+                las series son mensuales, se aplica el último mes cerrado para no entrenar con un mes a
+                medias.
+              </p>
+            ) : null}
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              Datos cargados hasta: ventas {meta?.training_data.last_sale_date ?? "—"} · tasa de cambio{" "}
+              {meta?.training_data.last_rate_date ?? "—"}.
+            </p>
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              Al guardar, el corte aplica de inmediato a los pronósticos. Para actualizar además las
+              métricas del registro, reentrena desde el panel predictivo.
+            </p>
+          </div>
+        </ComponentCard>
+
         {/* ── Rangos de precio (validación de scrapers) ──────────────── */}
         {bands ? (
           <div className="xl:col-span-2">

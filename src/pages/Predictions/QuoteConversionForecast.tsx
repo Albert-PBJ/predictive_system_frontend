@@ -105,6 +105,17 @@ export default function QuoteConversionForecast() {
         </div>
       ) : !data ? null : (
         <>
+          {/* Fecha de corte: el modelo se ajusta con los presupuestos emitidos hasta esa
+              fecha, pero el pipeline sigue incluyendo los abiertos posteriores (son los
+              que se quieren predecir). */}
+          {data.training_cutoff?.active && (
+            <p className="mb-5 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:bg-white/[0.03] dark:text-gray-400">
+              Modelo entrenado con los presupuestos emitidos hasta{" "}
+              <strong>{data.training_cutoff.effective_label}</strong> ({data.training_cutoff.effective}). El
+              pipeline sí incluye los presupuestos abiertos posteriores: son los que se están prediciendo.
+            </p>
+          )}
+
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
             {/* Gauge */}
             <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">

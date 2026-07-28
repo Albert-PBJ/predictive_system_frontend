@@ -42,6 +42,8 @@ export interface SystemSettingsData {
   // Valores por defecto de negocio
   default_iva_pct: string;
   default_quote_expiry_days: number;
+  // Módulo predictivo: fecha de corte del entrenamiento ("" / null = sin corte)
+  training_cutoff_date: string | null;
   // Empresa
   company_name: string;
   company_rif: string;
@@ -61,12 +63,29 @@ export interface LatestRate {
   source: string;
 }
 
+// Hasta dónde llegan los datos cargados y qué corte aplica el módulo predictivo.
+// `cutoff.effective` puede diferir de lo configurado: el backend lo ajusta al último
+// mes cerrado, porque las series de los modelos son mensuales.
+export interface TrainingDataMeta {
+  last_sale_date: string | null;
+  last_rate_date: string | null;
+  cutoff: {
+    active: boolean;
+    configured: string | null;
+    effective: string | null;
+    effective_period: string | null;
+    effective_label: string | null;
+    adjusted: boolean;
+  };
+}
+
 export interface SettingsMeta {
   deepseek_key_present: boolean;
   openai_installed: boolean;
   easyocr_installed: boolean;
   latest_rate: LatestRate | null;
   price_band_categories: string[];
+  training_data: TrainingDataMeta;
 }
 
 export interface SettingsResponse {

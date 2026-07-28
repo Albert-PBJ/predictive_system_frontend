@@ -14,6 +14,8 @@ import {
   TableRow,
 } from "../../components/ui/table";
 import TrainingHistoryModal from "../../components/analytics/TrainingHistoryModal";
+import Input from "../../components/form/input/InputField";
+import Label from "../../components/form/Label";
 import { analyticsService, type OverviewResponse } from "../../services/analyticsService";
 import { getApiError } from "../../services/apiError";
 import { fmtUSD, fmtDate } from "../../utils/format";
@@ -40,10 +42,14 @@ export default function PredictionsOverview() {
   const [retrainMsg, setRetrainMsg] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyKey, setHistoryKey] = useState(0);
+  // Fecha de corte del entrenamiento (vacío = sin corte, se usa todo el historial).
+  const [cutoff, setCutoff] = useState("");
 
   const load = useCallback(async () => {
     const d = await analyticsService.overview();
     setData(d);
+    // Refleja el corte vigente en el campo (lo que el servidor tiene configurado).
+    setCutoff(d.training_cutoff?.configured ?? "");
     return d;
   }, []);
 
@@ -62,13 +68,20 @@ export default function PredictionsOverview() {
     setError(null);
     setRetrainMsg(null);
     try {
-      const res = await analyticsService.retrain();
+      const res = await analyticsService.retrain(cutoff.trim() || null);
       await load(); // recarga el registro + titulares con los modelos recién entrenados
       setHistoryKey((k) => k + 1); // el reentrenamiento añadió un punto al historial
+      const tc = res.training_cutoff;
+      const range = tc?.active
+        ? ` Entrenados con datos hasta ${tc.effective_label} (${tc.effective}); el pronóstico arranca en el mes siguiente.`
+        : " Entrenados con todo el historial disponible.";
+      const adjusted = tc?.adjusted
+        ? ` Se ajustó la fecha elegida (${tc.configured}) al último mes cerrado: los modelos son mensuales y un mes a medias los distorsiona.`
+        : "";
       setRetrainMsg(
         `Modelos reentrenados: ${res.active_models} activos${
           res.trained_at ? ` · ${fmtDate(res.trained_at)}` : ""
-        }.`
+        }.${range}${adjusted}`
       );
     } catch (e) {
       setError(getApiError(e, "No se pudieron reentrenar los modelos."));
@@ -168,14 +181,23 @@ export default function PredictionsOverview() {
 
           {/* Registro de modelos */}
           <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
               <div>
                 <h4 className="text-sm font-medium text-gray-700 dark:text-gray-200">Registro de modelos activos</h4>
                 <p className="mt-0.5 text-xs text-gray-400">
                   Reentrena con los datos más recientes (ventas, tasas y scraping) y recalcula las métricas.
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="w-44">
+                  <Label className="mb-1 text-xs">Entrenar con datos hasta</Label>
+                  <Input
+                    type="date"
+                    value={cutoff}
+                    onChange={(e) => setCutoff(e.target.value)}
+                    disabled={retraining}
+                  />
+                </div>
                 <Button size="sm" variant="outline" onClick={() => setHistoryOpen(true)}>
                   Ver historial de precisión
                 </Button>
@@ -190,6 +212,21 @@ export default function PredictionsOverview() {
                 </Button>
               </div>
             </div>
+            <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+              La <strong>fecha de corte</strong> marca hasta dónde son datos y desde dónde es pronóstico: lo
+              registrado después de esa fecha se excluye del entrenamiento y esos meses pasan a predecirse.
+              Úsala cuando haya cargas de prueba o un mes en curso que no deban contaminar los modelos.
+              Déjala vacía para entrenar con todo el historial.{" "}
+              {data.training_cutoff?.active ? (
+                <span className="font-medium text-gray-700 dark:text-gray-300">
+                  Corte vigente: {data.training_cutoff.effective_label} ({data.training_cutoff.effective}).
+                </span>
+              ) : (
+                <span className="font-medium text-gray-700 dark:text-gray-300">
+                  Actualmente sin corte.
+                </span>
+              )}
+            </p>
             {retrainMsg && (
               <div className="mb-3">
                 <Alert variant="success" title="Modelos actualizados" message={retrainMsg} />

@@ -49,6 +49,19 @@ export interface DetailEntry {
 
 export type ValueKind = "int" | "usd" | "ves" | "rate" | "percent";
 
+// Fecha de corte del entrenamiento: hasta dónde llegan los datos que ven los modelos.
+// `configured` es lo que eligió el usuario; `effective` lo que realmente se aplica (el
+// backend lo ajusta al último mes cerrado, porque las series son mensuales), y
+// `adjusted` avisa cuando ambos difieren.
+export interface TrainingCutoff {
+  active: boolean;
+  configured: string | null;
+  effective: string | null;
+  effective_period: string | null;
+  effective_label: string | null;
+  adjusted: boolean;
+}
+
 export interface ForecastResponse {
   target: string;
   title: string;
@@ -61,6 +74,7 @@ export interface ForecastResponse {
   detail: Record<string, DetailEntry>;
   meta: Record<string, unknown>;
   sigma?: number | null;
+  training_cutoff?: TrainingCutoff | null;
 }
 
 export interface ForecastableProduct {
@@ -100,6 +114,7 @@ export interface QuoteConversionResponse {
     expected_rate_pct: number;
     quotes: PipelineQuote[];
   };
+  training_cutoff?: TrainingCutoff | null;
 }
 
 // --- Análisis de competencia (separado de los datos internos) ---
@@ -175,6 +190,7 @@ export interface OverviewResponse {
     hyperparameters: Record<string, unknown>;
     trained_at: string | null;
   }[];
+  training_cutoff?: TrainingCutoff | null;
 }
 
 // --- Narrativa del reporte ejecutivo redactada por el LLM ---
@@ -232,6 +248,7 @@ export interface RetrainResult {
   active_models: number;
   total_rows: number;
   trained_at: string | null;
+  training_cutoff?: TrainingCutoff | null;
 }
 
 // --- Historial de reentrenamientos (evolución de la precisión) ---
@@ -292,8 +309,13 @@ export const analyticsService = {
   },
   // Reentrena y reescribe el registro de modelos (equivalente a `train_models`) y
   // limpia la caché del servidor. Síncrono: tarda unos segundos. Gerente/Admin.
-  async retrain(): Promise<RetrainResult> {
-    const { data } = await api.post<RetrainResult>("/analytics/retrain");
+  //
+  // `cutoff` es la fecha de corte del entrenamiento: los datos posteriores no se usan y
+  // el pronóstico arranca justo después. `null` quita el corte; **omitirlo** conserva el
+  // que ya esté configurado.
+  async retrain(cutoff?: string | null): Promise<RetrainResult> {
+    const body = cutoff === undefined ? {} : { cutoff: cutoff || null };
+    const { data } = await api.post<RetrainResult>("/analytics/retrain", body);
     return data;
   },
   // Historial de reentrenamientos + evolución de la precisión de cada modelo.
