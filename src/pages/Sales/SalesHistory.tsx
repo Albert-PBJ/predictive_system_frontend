@@ -586,7 +586,7 @@ export default function SalesHistory() {
               )}
               {selected.status !== "ANU" && canInvoice && (
                 <Button onClick={() => setInvoiceOpen(true)}>
-                  {selected.is_invoiced ? "Editar factura" : "Facturar"}
+                  {selected.is_invoiced ? "Editar factura" : "Registrar factura"}
                 </Button>
               )}
               {canVoid && selected.status !== "ANU" && (

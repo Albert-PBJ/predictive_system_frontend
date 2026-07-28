@@ -1,11 +1,20 @@
+import { useEffect } from "react";
 import { SidebarProvider, useSidebar } from "../context/SidebarContext";
-import { Outlet } from "react-router";
+import { Outlet, useLocation } from "react-router";
 import AppHeader from "./AppHeader";
 import Backdrop from "./Backdrop";
 import AppSidebar from "./AppSidebar";
 
 const LayoutContent: React.FC = () => {
-  const { isExpanded, isHovered, isMobileOpen } = useSidebar();
+  const { isExpanded, isHovered, isMobileOpen, closeMobileSidebar } = useSidebar();
+  const { pathname } = useLocation();
+
+  // En móvil el menú es un panel que tapa la pantalla: al navegar se cierra para
+  // que se vea la página nueva (antes quedaba abierto y parecía que nada pasaba).
+  // Cubre cualquier navegación, no solo la de la barra lateral.
+  useEffect(() => {
+    closeMobileSidebar();
+  }, [pathname, closeMobileSidebar]);
 
   return (
     <div className="min-h-screen xl:flex">

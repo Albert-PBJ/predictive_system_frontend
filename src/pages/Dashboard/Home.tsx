@@ -5,7 +5,6 @@ import Alert from "../../components/ui/alert/Alert";
 import { statsService } from "../../services/statsService";
 import type {
   DashboardResponse,
-  DateRange,
   InventoryHealth,
   NoDemandRow,
   ExecProductRow,
@@ -27,6 +26,7 @@ import DateRangeFilter from "../../components/dashboard/DateRangeFilter";
 import NarrativeBanner from "../../components/dashboard/NarrativeBanner";
 import GenerateReportButton from "../../components/report/GenerateReportButton";
 import { useAuth } from "../../context/AuthContext";
+import { useDateRange } from "../../context/DateRangeContext";
 import { CAN_VIEW_FORECASTS } from "../../services/types";
 import KpiGrid from "../../components/dashboard/KpiGrid";
 import HealthGauge from "../../components/dashboard/HealthGauge";
@@ -74,7 +74,8 @@ function InventoryCard({ inv }: { inv: InventoryHealth }) {
 
 export default function Home() {
   const { user, hasRole } = useAuth();
-  const [range, setRange] = useState<Partial<DateRange>>({});
+  // Rango compartido con las páginas de Estadísticas: se conserva al navegar.
+  const { range, setRange } = useDateRange();
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

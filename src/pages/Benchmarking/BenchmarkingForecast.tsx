@@ -18,7 +18,7 @@ import NarrativeBanner from "../../components/dashboard/NarrativeBanner";
 import { benchmarkingService, ALL_COMPETITORS } from "../../services/benchmarkingService";
 import type { BenchForecast, CategoryForecast, NamedSeries, ProductForecast } from "../../services/benchmarkingService";
 import { HORIZON_OPTIONS } from "../../services/analyticsService";
-import type { DateRange } from "../../services/statsService";
+import { useDateRange } from "../../context/DateRangeContext";
 import { getApiError } from "../../services/apiError";
 import { fmtUSD, fmtPct } from "../../utils/format";
 
@@ -43,7 +43,8 @@ const lastFc = (s?: NamedSeries | null) => (s && s.forecast.length ? s.forecast[
 const gapPct = (own: number | null, comp: number | null) => (own != null && comp ? ((own - comp) / comp) * 100 : null);
 
 export default function BenchmarkingForecast() {
-  const [range, setRange] = useState<Partial<DateRange>>({});
+  // Mismo rango que "Comparaciones" (ámbito benchmarking), conservado al navegar.
+  const { range, setRange } = useDateRange("benchmarking");
   const [horizon, setHorizon] = useState(6);
   const [product, setProduct] = useState<number | null>(null);
   const [competitor, setCompetitor] = useState<string>(ALL_COMPETITORS);

@@ -249,7 +249,7 @@ export default function RegisterSale() {
     }
     if (addInvoiceNow && (!invoiceNumber.trim() || !controlNumber.trim())) {
       setError(
-        "Para facturar ahora, ingresa el N° de factura y el N° de control " +
+        "Para registrar la factura ahora, ingresa el N° de factura y el N° de control " +
           "(o desmarca «Registrar la factura ahora»).",
       );
       return;
@@ -307,9 +307,9 @@ export default function RegisterSale() {
     };
     try {
       const sale = await salesService.create(payload);
-      // Si se pidió facturar en el mismo paso, se factura la venta recién creada. Si
-      // esto falla (p. ej. número duplicado), la venta ya quedó registrada: se muestra
-      // sin factura con un aviso, y se puede reintentar con «Facturar».
+      // Si se pidió registrar la factura en el mismo paso, se hace sobre la venta recién
+      // creada. Si esto falla (p. ej. número duplicado), la venta ya quedó registrada: se
+      // muestra sin factura con un aviso, y se puede reintentar con «Registrar factura».
       if (addInvoiceNow) {
         try {
           const invoiced = await salesService.invoiceSale(sale.id, {
@@ -322,8 +322,8 @@ export default function RegisterSale() {
         } catch (err) {
           setResult(sale);
           setInvoiceWarning(
-            getApiError(err, "La venta se registró, pero no se pudo facturar.") +
-              " Puedes reintentar con «Facturar».",
+            getApiError(err, "La venta se registró, pero no se pudo registrar su factura.") +
+              " Puedes reintentar con «Registrar factura».",
           );
         }
       } else {
@@ -397,13 +397,14 @@ export default function RegisterSale() {
             </p>
           ) : (
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              La venta se registró <strong>sin factura</strong>. Puedes facturarla ahora con «Facturar»
-              (o más tarde desde el historial de ventas), y generar su orden de despacho.
+              La venta se registró <strong>sin factura</strong>. Puedes registrarla ahora con
+              «Registrar factura» (o más tarde desde el historial de ventas), y generar su orden de
+              despacho.
             </p>
           )}
           <div className="flex flex-wrap gap-3">
             <Button onClick={() => setInvoiceOpen(true)}>
-              {result.is_invoiced ? "Editar factura" : "Facturar"}
+              {result.is_invoiced ? "Editar factura" : "Registrar factura"}
             </Button>
             <Button variant="outline" onClick={() => setDispatchOpen(true)}>
               Generar orden de despacho
@@ -706,7 +707,7 @@ export default function RegisterSale() {
             </div>
           </ComponentCard>
 
-          <ComponentCard title="Facturación fiscal (opcional)">
+          <ComponentCard title="Registro de factura (opcional)">
             <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
               <input
                 type="checkbox"
@@ -765,7 +766,7 @@ export default function RegisterSale() {
               </div>
             ) : (
               <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                Si no la marcas, la venta se registra sin factura y podrás facturarla después.
+                Si no la marcas, la venta se registra sin factura y podrás registrarla después.
               </p>
             )}
           </ComponentCard>

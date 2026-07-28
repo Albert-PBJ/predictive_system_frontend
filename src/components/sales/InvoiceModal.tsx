@@ -74,7 +74,7 @@ export default function InvoiceModal({ isOpen, onClose, sale, onInvoiced }: Prop
       onInvoiced(updated);
       onClose();
     } catch (err) {
-      setError(getApiError(err, "No se pudo facturar la venta."));
+      setError(getApiError(err, "No se pudo registrar la factura de la venta."));
     } finally {
       setSubmitting(false);
     }
@@ -86,13 +86,13 @@ export default function InvoiceModal({ isOpen, onClose, sale, onInvoiced }: Prop
     <Modal isOpen={isOpen} onClose={onClose} className="m-4 max-w-lg">
       <div className="p-6 sm:p-8">
         <h3 className="mb-1 text-lg font-semibold text-gray-800 dark:text-white/90">
-          {sale.is_invoiced ? "Editar factura" : "Facturar venta"} #{sale.id}
+          {sale.is_invoiced ? "Editar factura" : "Registrar factura"} · venta #{sale.id}
         </h3>
         <p className="mb-5 text-sm text-gray-500 dark:text-gray-400">{sale.customer_name}</p>
 
         {error && (
           <div className="mb-4">
-            <Alert variant="error" title="No se pudo facturar" message={error} />
+            <Alert variant="error" title="No se pudo registrar la factura" message={error} />
           </div>
         )}
 
@@ -160,7 +160,7 @@ export default function InvoiceModal({ isOpen, onClose, sale, onInvoiced }: Prop
             Cancelar
           </Button>
           <Button onClick={handleSave} disabled={submitting}>
-            {submitting ? "Guardando…" : sale.is_invoiced ? "Guardar cambios" : "Facturar"}
+            {submitting ? "Guardando…" : sale.is_invoiced ? "Guardar cambios" : "Registrar factura"}
           </Button>
         </div>
       </div>

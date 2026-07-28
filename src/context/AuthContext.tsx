@@ -7,6 +7,7 @@ import {
   ReactNode,
 } from "react";
 import { authService } from "../services/authService";
+import { clearStoredRanges } from "./DateRangeContext";
 import { SESSION_EXPIRED_EVENT } from "../services/api";
 import { tokenStorage } from "../services/tokenStorage";
 import type { AuthUser, Role } from "../services/auth.types";
@@ -52,7 +53,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // La API avisa cuando el refresh falla de forma irrecuperable.
   useEffect(() => {
-    const onExpired = () => setUser(null);
+    const onExpired = () => {
+      setUser(null);
+      // El rango "máquina del tiempo" es de la sesión: el siguiente usuario empieza limpio.
+      clearStoredRanges();
+    };
     window.addEventListener(SESSION_EXPIRED_EVENT, onExpired);
     return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
   }, []);
@@ -65,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     await authService.logout();
     setUser(null);
+    clearStoredRanges();
   }, []);
 
   const hasRole = useCallback(

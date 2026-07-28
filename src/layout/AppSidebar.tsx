@@ -143,7 +143,8 @@ const navItems: NavItem[] = [
 const othersItems: NavItem[] = [];
 
 const AppSidebar: React.FC = () => {
-  const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
+  const { isExpanded, isMobileOpen, isHovered, setIsHovered, closeMobileSidebar } =
+    useSidebar();
   const { hasRole } = useAuth();
   const location = useLocation();
 
@@ -283,6 +284,7 @@ const AppSidebar: React.FC = () => {
             nav.path && (
               <Link
                 to={nav.path}
+                onClick={closeMobileSidebar}
                 className={`menu-item group ${
                   isActive(nav.path) ? "menu-item-active" : "menu-item-inactive"
                 }`}
@@ -320,6 +322,7 @@ const AppSidebar: React.FC = () => {
                   <li key={subItem.name}>
                     <Link
                       to={subItem.path}
+                      onClick={closeMobileSidebar}
                       className={`menu-dropdown-item ${
                         isActive(subItem.path)
                           ? "menu-dropdown-item-active"
@@ -382,7 +385,7 @@ const AppSidebar: React.FC = () => {
           !isExpanded && !isHovered ? "lg:justify-center" : "justify-center"
         }`}
       >
-        <Link to="/" className="w-full">
+        <Link to="/" onClick={closeMobileSidebar} className="w-full">
           {isExpanded || isHovered || isMobileOpen ? (
             <img
               src="/images/logo/maescar-logo.jpg"

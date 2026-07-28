@@ -2,6 +2,7 @@ import { useState } from "react";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { useNavigate } from "react-router";
+import UserAvatar from "../common/UserAvatar";
 import { useAuth } from "../../context/AuthContext";
 
 export default function UserDropdown() {
@@ -30,9 +31,7 @@ export default function UserDropdown() {
         onClick={toggleDropdown}
         className="flex items-center text-gray-700 dropdown-toggle dark:text-gray-400"
       >
-        <span className="mr-3 overflow-hidden rounded-full h-11 w-11">
-          <img src="/images/user/owner.jpg" alt="Usuario" />
-        </span>
+        <UserAvatar className="mr-3 h-11 w-11" label={displayName} />
 
         <span className="block mr-1 font-medium text-theme-sm">{displayName}</span>
         <svg

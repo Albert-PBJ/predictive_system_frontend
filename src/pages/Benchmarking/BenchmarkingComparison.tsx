@@ -23,12 +23,14 @@ import type {
   PriceComparisonRow,
   UnmatchedProductRow,
 } from "../../services/benchmarkingService";
-import type { DateRange } from "../../services/statsService";
+import { useDateRange } from "../../context/DateRangeContext";
 import { getApiError } from "../../services/apiError";
 import { fmtInt, fmtUSD, fmtDate } from "../../utils/format";
 
 export default function BenchmarkingComparison() {
-  const [range, setRange] = useState<Partial<DateRange>>({});
+  // Rango compartido con el resto del módulo de benchmarking (ámbito propio: las
+  // observaciones de mercado cubren una ventana mucho más corta que las ventas).
+  const { range, setRange } = useDateRange("benchmarking");
   const [competitor, setCompetitor] = useState<string>(ALL_COMPETITORS);
   const [data, setData] = useState<BenchComparison | null>(null);
   const [loading, setLoading] = useState(true);

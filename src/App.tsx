@@ -11,6 +11,7 @@ import Home from "./pages/Dashboard/Home";
 import { AuthProvider } from "./context/AuthContext";
 import { ScraperProvider } from "./context/ScraperContext";
 import { NotificationsProvider } from "./context/NotificationsContext";
+import { DateRangeProvider } from "./context/DateRangeContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import ScraperPage from "./pages/ExternalData/ScraperPage";
 import ScraperSchedules from "./pages/ExternalData/ScraperSchedules";
@@ -56,6 +57,8 @@ export default function App() {
         <AuthProvider>
           <NotificationsProvider>
           <ScraperProvider>
+          {/* Rango "máquina del tiempo" compartido: persiste al navegar entre paneles */}
+          <DateRangeProvider>
             <ScrollToTop />
             {/* Dispara las programaciones de scraping vencidas al iniciar sesión el admin */}
             <ScraperScheduleRunner />
@@ -334,6 +337,7 @@ export default function App() {
               {/* Fallback Route */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+          </DateRangeProvider>
           </ScraperProvider>
           </NotificationsProvider>
         </AuthProvider>

@@ -1,19 +1,25 @@
 import { useEffect, useState } from "react";
 import { getApiError } from "../services/apiError";
+import { useDateRange, type RangeScope } from "../context/DateRangeContext";
 import type { DateRange } from "../services/statsService";
 
 /**
  * Variante de `useAsyncData` para los paneles con "máquina del tiempo" (la misma
- * lógica del panel de Inicio): mantiene el rango Desde/Hasta y recarga los datos
- * cada vez que cambia. Devuelve además `range`/`setRange` para conectar el
+ * lógica del panel de Inicio): recarga los datos cada vez que cambia el rango
+ * Desde/Hasta. Devuelve además `range`/`setRange` para conectar el
  * `DateRangeFilter`. Igual que en Inicio, los datos previos se conservan mientras
  * `loading` está activo (la página los atenúa en lugar de parpadear).
+ *
+ * El rango **no** es local a la página: vive en `DateRangeContext` (ámbito
+ * `business` por defecto), de modo que el que elige el usuario se conserva al
+ * navegar entre Inicio y las páginas de Estadísticas.
  */
 export function useRangedData<T>(
   fn: (range: Partial<DateRange>) => Promise<T>,
   fallbackMsg = "No se pudieron cargar los datos.",
+  scope: RangeScope = "business",
 ) {
-  const [range, setRange] = useState<Partial<DateRange>>({});
+  const { range, setRange } = useDateRange(scope);
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
