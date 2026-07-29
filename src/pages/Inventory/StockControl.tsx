@@ -18,6 +18,7 @@ import {
 } from "../../components/ui/table";
 import { BoxIconLine, PlusIcon } from "../../icons";
 import MovementModal, { type PickedProduct } from "../../components/inventory/MovementModal";
+import CostModal from "../../components/inventory/CostModal";
 import ImpexBar from "../../components/impex/ImpexBar";
 import {
   inventoryService,
@@ -28,7 +29,7 @@ import {
 import { getApiError } from "../../services/apiError";
 import { fmtUSD, fmtDate, fmtInt, fmtCompactUSD } from "../../utils/format";
 import { useAuth } from "../../context/AuthContext";
-import { CAN_MANAGE_STOCK } from "../../services/types";
+import { CAN_LOAD_COSTS, CAN_MANAGE_STOCK } from "../../services/types";
 import ChartCard from "../../components/stats/ChartCard";
 import DonutChart from "../../components/stats/DonutChart";
 import BarChart from "../../components/stats/BarChart";
@@ -43,6 +44,9 @@ export default function StockControl() {
   // Verificar un movimiento (confirmar que ocurrió físicamente) es solo del encargado
   // de inventario y el admin (mismo criterio que el backend `IsStockVerifier`).
   const canVerify = hasRole("ADMIN", "WAREHOUSE");
+  // Cargar el costo de compra de una entrada ya registrada (cuando llega la factura del
+  // proveedor) es tarea de gerencia/administración, no de almacén (backend: IsManager).
+  const canLoadCosts = hasRole(...CAN_LOAD_COSTS);
   const [verifyingId, setVerifyingId] = useState<number | null>(null);
 
   // ── Tabla de stock ──
@@ -66,12 +70,18 @@ export default function StockControl() {
   const [movCount, setMovCount] = useState(0);
   const [movPage, setMovPage] = useState(1);
   const [movType, setMovType] = useState("");
+  const [pendingCostOnly, setPendingCostOnly] = useState(false);
   const [movFiltersKey, setMovFiltersKey] = useState(0);
   const [loadingMov, setLoadingMov] = useState(true);
 
   // ── Modal ──
   const [modalOpen, setModalOpen] = useState(false);
   const [modalProduct, setModalProduct] = useState<PickedProduct | null>(null);
+
+  // ── Carga de costo (gerencia): entrada a costear + aviso del resultado ──
+  const [costMovement, setCostMovement] = useState<Movement | null>(null);
+  const [costOpen, setCostOpen] = useState(false);
+  const [costMsg, setCostMsg] = useState<string | null>(null);
 
   // Token para recargar ambas tablas tras registrar un movimiento.
   const [reloadToken, setReloadToken] = useState(0);
@@ -148,14 +158,19 @@ export default function StockControl() {
 
   useEffect(() => {
     setMovPage(1);
-  }, [movType]);
+  }, [movType, pendingCostOnly]);
 
   // Carga del historial de movimientos.
   const loadMovements = useCallback(() => {
     let active = true;
     setLoadingMov(true);
     inventoryService
-      .getMovements({ page: movPage, page_size: MOV_PAGE_SIZE, movement_type: movType || undefined })
+      .getMovements({
+        page: movPage,
+        page_size: MOV_PAGE_SIZE,
+        movement_type: movType || undefined,
+        pending_cost: pendingCostOnly || undefined,
+      })
       .then((res) => {
         if (!active) return;
         setMovements(res.results);
@@ -166,7 +181,7 @@ export default function StockControl() {
     return () => {
       active = false;
     };
-  }, [movPage, movType]);
+  }, [movPage, movType, pendingCostOnly]);
 
   useEffect(() => loadMovements(), [loadMovements, reloadToken]);
 
@@ -192,6 +207,22 @@ export default function StockControl() {
     } finally {
       setVerifyingId(null);
     }
+  };
+
+  // Abre el modal de costeo sobre una entrada concreta.
+  const openCostFor = (m: Movement) => {
+    setCostMovement(m);
+    setCostOpen(true);
+  };
+
+  // Tras cargar el costo: refresca la fila y recarga el stock (cambió el costo promedio).
+  const onCostSaved = (updated: Movement, before: string | null, after: string | null) => {
+    setMovements((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
+    setCostMsg(
+      `Costo cargado en «${updated.product_name}»: ${fmtUSD(updated.unit_cost_usd ?? 0)} por unidad. ` +
+        `El costo promedio del producto pasó de ${fmtUSD(before ?? 0)} a ${fmtUSD(after ?? 0)}.`,
+    );
+    setReloadToken((t) => t + 1);
   };
 
   const typeBadgeColor = (t: string): "success" | "error" | "warning" | "info" => {
@@ -366,12 +397,45 @@ export default function StockControl() {
               <Label htmlFor="movType">Tipo</Label>
               <Select key={`mt-${movFiltersKey}`} options={movTypeOptions} placeholder="Todos" defaultValue={movType} onChange={setMovType} />
             </div>
+            {canLoadCosts && (
+              <div className="flex items-end">
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                  <input
+                    type="checkbox"
+                    checked={pendingCostOnly}
+                    onChange={(e) => setPendingCostOnly(e.target.checked)}
+                    className="size-4 rounded border-gray-300"
+                  />
+                  Solo entradas por costear
+                </label>
+              </div>
+            )}
             <div className="flex items-end">
-              <Button variant="outline" size="sm" onClick={() => { setMovType(""); setMovFiltersKey((k) => k + 1); }} disabled={!movType}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setMovType(""); setPendingCostOnly(false); setMovFiltersKey((k) => k + 1); }}
+                disabled={!movType && !pendingCostOnly}
+              >
                 Limpiar
               </Button>
             </div>
           </div>
+
+          {canLoadCosts && pendingCostOnly && (
+            <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+              Entradas de mercancía recibidas cuya factura de proveedor aún no se ha cargado. Al
+              registrar el costo se recalcula el costo promedio del producto. Las entradas del
+              histórico cargado al poner en marcha el sistema también aparecen aquí, porque nunca
+              tuvieron factura asociada.
+            </p>
+          )}
+
+          {costMsg && (
+            <div className="mt-4">
+              <Alert variant="success" title="Costo cargado" message={costMsg} />
+            </div>
+          )}
 
           <div className="mt-4 max-w-full overflow-x-auto">
             <Table>
@@ -416,9 +480,51 @@ export default function StockControl() {
                         {m.quantity > 0 ? `+${m.quantity}` : m.quantity}
                       </TableCell>
                       <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                        {m.unit_cost_usd ? fmtUSD(m.unit_cost_usd) : "—"}
+                        {m.pending_cost ? (
+                          <div className="flex items-center gap-2">
+                            <Badge variant="light" color="warning" size="sm">
+                              Sin costo
+                            </Badge>
+                            {canLoadCosts && (
+                              <button
+                                type="button"
+                                onClick={() => openCostFor(m)}
+                                className="text-xs font-medium text-brand-500 hover:text-brand-600"
+                              >
+                                Cargar
+                              </button>
+                            )}
+                          </div>
+                        ) : m.unit_cost_usd ? (
+                          <div className="flex items-center gap-2">
+                            {fmtUSD(m.unit_cost_usd)}
+                            {canLoadCosts && m.movement_type === "ENT" && !m.sale && (
+                              <button
+                                type="button"
+                                onClick={() => openCostFor(m)}
+                                className="text-xs font-medium text-brand-500 hover:text-brand-600"
+                              >
+                                Editar
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          "—"
+                        )}
                       </TableCell>
-                      <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{m.reference || "—"}</TableCell>
+                      <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                        {m.reference || "—"}
+                        {m.cost_invoice_url && (
+                          <a
+                            href={m.cost_invoice_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block text-xs font-medium text-brand-500 hover:text-brand-600"
+                          >
+                            Ver factura
+                          </a>
+                        )}
+                      </TableCell>
                       <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{m.responsible_name ?? "—"}</TableCell>
                       <TableCell className="px-4 py-3">
                         <div className="flex items-center gap-3">
@@ -467,6 +573,12 @@ export default function StockControl() {
       </div>
 
       <MovementModal isOpen={modalOpen} onClose={() => setModalOpen(false)} product={modalProduct} onSaved={onSaved} />
+      <CostModal
+        isOpen={costOpen}
+        onClose={() => setCostOpen(false)}
+        movement={costMovement}
+        onSaved={onCostSaved}
+      />
     </>
   );
 }

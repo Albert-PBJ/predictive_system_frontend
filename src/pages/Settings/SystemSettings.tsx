@@ -543,6 +543,44 @@ export default function SystemSettings() {
           </div>
         </ComponentCard>
 
+        {/* ── Operación ──────────────────────────────────────────────── */}
+        <ComponentCard
+          title="Operación"
+          desc="Desde cuándo el sistema registra operación real y no carga histórica."
+        >
+          <Field
+            label="Fecha de puesta en marcha"
+            help="Lo registrado antes de esta fecha se trata como la carga histórica inicial y no genera tareas pendientes. Hoy la usa el inventario: las entradas anteriores no se piden costear, porque nunca tuvieron factura de proveedor asociada. Vacío = todo el historial cuenta como operación real."
+          >
+            <Input
+              type="date"
+              value={str("go_live_date")}
+              onChange={(e) => set("go_live_date", e.target.value)}
+            />
+          </Field>
+
+          <div className="rounded-lg bg-gray-50 p-4 text-sm dark:bg-white/[0.03]">
+            <p className="text-gray-700 dark:text-gray-300">
+              {meta?.operations.go_live_date ? (
+                <>
+                  En marcha desde <strong>{meta.operations.go_live_date}</strong>.{" "}
+                </>
+              ) : (
+                <>Sin fecha de puesta en marcha: cuenta todo el historial.{" "}</>
+              )}
+              Entradas por costear con la frontera vigente:{" "}
+              <strong>{meta?.operations.pending_cost_count ?? 0}</strong>.
+            </p>
+            {meta?.operations.last_entry_date && (
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                La última entrada de inventario cargada es del {meta.operations.last_entry_date}. Si
+                ahí termina la carga histórica, fija la puesta en marcha el día siguiente: así solo
+                se piden costear las entradas registradas ya operando el sistema.
+              </p>
+            )}
+          </div>
+        </ComponentCard>
+
         {/* ── Módulo predictivo ──────────────────────────────────────── */}
         <ComponentCard
           title="Módulo predictivo"

@@ -42,6 +42,9 @@ export interface SystemSettingsData {
   // Valores por defecto de negocio
   default_iva_pct: string;
   default_quote_expiry_days: number;
+  // Operación: fecha de puesta en marcha ("" / null = sin frontera). Lo anterior se
+  // considera carga histórica y no genera tareas pendientes (entradas por costear).
+  go_live_date: string | null;
   // Módulo predictivo: fecha de corte del entrenamiento ("" / null = sin corte) y la
   // excepción que deja a los modelos de tasa entrenarse con el dato más reciente.
   training_cutoff_date: string | null;
@@ -90,6 +93,14 @@ export interface TrainingDataMeta {
   rates_cutoff: CutoffInfo;
 }
 
+// Datos para elegir la fecha de puesta en marcha: hasta dónde llega el inventario
+// cargado y cuántas entradas quedan por costear con la frontera vigente.
+export interface OperationsMeta {
+  last_entry_date: string | null; // última ENTRADA cargada: dónde termina el histórico
+  go_live_date: string | null;
+  pending_cost_count: number;
+}
+
 export interface SettingsMeta {
   deepseek_key_present: boolean;
   openai_installed: boolean;
@@ -97,6 +108,7 @@ export interface SettingsMeta {
   latest_rate: LatestRate | null;
   price_band_categories: string[];
   training_data: TrainingDataMeta;
+  operations: OperationsMeta;
 }
 
 export interface SettingsResponse {

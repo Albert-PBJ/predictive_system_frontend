@@ -32,6 +32,13 @@ export const OPERATIONAL_ROLES: Role[] = ["ADMIN", "MANAGER", "SELLER", "WAREHOU
 // donde la escritura de productos es de Gerente o superior.
 export const CAN_MANAGE_PRODUCTS: Role[] = ["ADMIN", "MANAGER"];
 
+// Pueden cargar el costo de compra de una entrada ya registrada (cuando llega la
+// factura del proveedor). Es tarea de gerencia/administración —quien recibe y
+// administra las facturas—, no de almacén: almacén registra la mercancía que llega,
+// la gerencia carga el dato económico. Espejo del backend (IsManager en la acción
+// `costear` de apps/inventory).
+export const CAN_LOAD_COSTS: Role[] = ["ADMIN", "MANAGER"];
+
 // Pueden ver el módulo predictivo (pronósticos y análisis). Son herramientas de
 // decisión estratégica "para el dueño": Gerente o Administrador. Espejo del backend
 // (IsManager en apps/analytics).

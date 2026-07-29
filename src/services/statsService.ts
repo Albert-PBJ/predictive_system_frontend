@@ -237,6 +237,27 @@ export interface DashboardScope {
   seller_name: string | null;
 }
 
+// Entradas de mercancía recibidas a las que aún no se les cargó el costo de la
+// factura del proveedor. La fila trae lo necesario para costearla desde el panel.
+export interface PendingCostRow {
+  id: number;
+  product: number;
+  product_name: string;
+  product_sku: string | null;
+  quantity: number;
+  movement_date: string;
+  days_waiting: number;
+  responsible_name: string | null;
+  reference: string;
+  notes: string;
+  unit_cost_usd: string | null;
+}
+
+export interface PendingCostsBlock {
+  count: number;
+  rows: PendingCostRow[];
+}
+
 export interface ExecutiveDashboard {
   range: {
     from: string;
@@ -264,6 +285,9 @@ export interface ExecutiveDashboard {
   exchange_rate: ExchangeRateBlock | null;
   competitive?: CompetitiveBlock | null;
   alerts: DashboardAlert[];
+  // Tarea de la gerencia: entradas recibidas cuya factura de proveedor no se ha
+  // cargado. Solo llega a quien puede costearlas (Gerente/Admin); null en el resto.
+  pending_costs?: PendingCostsBlock | null;
   model_health?: ModelHealthRow[] | null;
   customers_by_state: StateCount[];
   recent_sales: RecentSale[];

@@ -31,6 +31,7 @@ import { CAN_VIEW_FORECASTS } from "../../services/types";
 import KpiGrid from "../../components/dashboard/KpiGrid";
 import HealthGauge from "../../components/dashboard/HealthGauge";
 import AlertsPanel from "../../components/dashboard/AlertsPanel";
+import PendingCostsCard from "../../components/dashboard/PendingCostsCard";
 import ExchangeRateCard from "../../components/dashboard/ExchangeRateCard";
 import CompetitivePanel from "../../components/dashboard/CompetitivePanel";
 import WarehouseHome from "../../components/dashboard/WarehouseHome";
@@ -79,6 +80,9 @@ export default function Home() {
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Se incrementa tras una acción hecha desde el panel (p. ej. costear una entrada),
+  // para releer las cifras ya actualizadas.
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -94,7 +98,7 @@ export default function Home() {
     };
     // Recarga cuando cambian las fechas del rango; `range` se desestructura a propósito.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [range.from, range.to]);
+  }, [range.from, range.to, reloadToken]);
 
   const displayFrom = range.from ?? data?.range.from ?? "";
   const displayTo = range.to ?? data?.range.to ?? "";
@@ -266,6 +270,16 @@ export default function Home() {
                 </div>
               ) : (
                 <>
+                  {/* Tarea pendiente de la gerencia: entradas recibidas sin la factura
+                      cargada. Se resuelve aquí mismo (el modal de costeo es el mismo de
+                      Inventario), sin salir del panel. */}
+                  {data.pending_costs && (
+                    <PendingCostsCard
+                      data={data.pending_costs}
+                      onCosted={() => setReloadToken((t) => t + 1)}
+                    />
+                  )}
+
                   {/* Empresa: productos sin demanda + alertas tempranas */}
                   <div className="grid grid-cols-12 gap-4 md:gap-6">
                     <div className="col-span-12 xl:col-span-7">

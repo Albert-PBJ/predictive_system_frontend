@@ -32,6 +32,11 @@ export interface Movement {
   movement_type_display: string;
   quantity: number;
   unit_cost_usd: string | null; // costo unitario (compra en entradas; CMV en salidas)
+  // Entrada por compra a la que aún no se le cargó el costo de la factura del
+  // proveedor: la bandeja de trabajo de la gerencia (ver `setMovementCost`).
+  pending_cost: boolean;
+  // Factura de compra escaneada que respalda el costo (PDF o imagen), si se adjuntó.
+  cost_invoice_url: string | null;
   sale: number | null;
   reference: string;
   responsible: number | null;
@@ -71,8 +76,24 @@ export interface MovementListParams {
   date_from?: string;
   date_to?: string;
   search?: string;
+  pending_cost?: boolean; // solo entradas por compra sin costo cargado
   page?: number;
   page_size?: number;
+}
+
+// Carga del costo de compra sobre una entrada ya registrada (llegó la factura).
+export interface MovementCostInput {
+  unit_cost: string;
+  reference?: string;
+  notes?: string;
+  // Factura escaneada (PDF o imagen). Si no se envía, se conserva la ya adjunta.
+  invoice_file?: File | null;
+}
+
+export interface MovementCostResult {
+  movement: Movement;
+  average_cost_before: string | null;
+  average_cost_after: string | null;
 }
 
 export const inventoryService = {
@@ -88,6 +109,34 @@ export const inventoryService = {
 
   async createMovement(payload: NewMovement): Promise<Movement> {
     const { data } = await api.post<Movement>("/inventory/movements/", payload);
+    return data;
+  },
+
+  // Carga el costo de compra de una entrada ya registrada (cuando llega la factura
+  // del proveedor) y recalcula el costo promedio del producto. Solo gerencia/admin
+  // (lo aplica el backend). Nota la barra final.
+  //
+  // Va como multipart cuando se adjunta la factura escaneada. Igual que en `invoiceSale`,
+  // hay que forzar el `Content-Type`: la instancia `api` trae "application/json" y con ese
+  // encabezado axios serializaría el FormData a JSON (el archivo llegaría como texto).
+  async setMovementCost(id: number, payload: MovementCostInput): Promise<MovementCostResult> {
+    const url = `/inventory/movements/${id}/costo/`;
+    if (!payload.invoice_file) {
+      const { data } = await api.post<MovementCostResult>(url, {
+        unit_cost: payload.unit_cost,
+        reference: payload.reference,
+        notes: payload.notes,
+      });
+      return data;
+    }
+    const fd = new FormData();
+    fd.append("unit_cost", payload.unit_cost);
+    if (payload.reference) fd.append("reference", payload.reference);
+    if (payload.notes) fd.append("notes", payload.notes);
+    fd.append("invoice_file", payload.invoice_file);
+    const { data } = await api.post<MovementCostResult>(url, fd, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
     return data;
   },
 
