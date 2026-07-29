@@ -18,6 +18,7 @@ import Input from "../../components/form/input/InputField";
 import Label from "../../components/form/Label";
 import { analyticsService, type OverviewResponse } from "../../services/analyticsService";
 import { getApiError } from "../../services/apiError";
+import { useAuth } from "../../context/AuthContext";
 import { fmtUSD, fmtDate } from "../../utils/format";
 
 function Headline({ label, value, sub, to }: { label: string; value: string; sub?: string; to?: string }) {
@@ -35,6 +36,11 @@ const fmtN = (v: number | null | undefined, d = 2) =>
   v === null || v === undefined ? "—" : Number(v).toLocaleString("es-VE", { maximumFractionDigits: d });
 
 export default function PredictionsOverview() {
+  // Reentrenar (y fijar la fecha de corte) es solo del Administrador: reescribe el
+  // registro de modelos y cambia la configuración global del entrenamiento. El Gerente
+  // consulta los pronósticos y el registro, pero no los reentrena (backend: IsAdmin).
+  const { hasRole } = useAuth();
+  const canRetrain = hasRole("ADMIN");
   const [data, setData] = useState<OverviewResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -185,43 +191,55 @@ export default function PredictionsOverview() {
               <div>
                 <h4 className="text-sm font-medium text-gray-700 dark:text-gray-200">Registro de modelos activos</h4>
                 <p className="mt-0.5 text-xs text-gray-400">
-                  Reentrena con los datos más recientes (ventas, tasas y scraping) y recalcula las métricas.
+                  {canRetrain
+                    ? "Reentrena con los datos más recientes (ventas, tasas y scraping) y recalcula las métricas."
+                    : "Métricas y fecha de entrenamiento de los modelos que sirven cada pronóstico."}
                 </p>
               </div>
               <div className="flex flex-wrap items-end gap-2">
-                <div className="w-44">
-                  <Label className="mb-1 text-xs">Entrenar con datos hasta</Label>
-                  <Input
-                    type="date"
-                    value={cutoff}
-                    onChange={(e) => setCutoff(e.target.value)}
-                    disabled={retraining}
-                  />
-                </div>
+                {canRetrain && (
+                  <div className="w-44">
+                    <Label className="mb-1 text-xs">Entrenar con datos hasta</Label>
+                    <Input
+                      type="date"
+                      value={cutoff}
+                      onChange={(e) => setCutoff(e.target.value)}
+                      disabled={retraining}
+                    />
+                  </div>
+                )}
                 <Button size="sm" variant="outline" onClick={() => setHistoryOpen(true)}>
                   Ver historial de precisión
                 </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleRetrain}
-                  disabled={retraining}
-                  startIcon={retraining ? <Spinner className="h-4 w-4 text-current" /> : undefined}
-                >
-                  {retraining ? "Reentrenando…" : "Reentrenar modelos"}
-                </Button>
+                {canRetrain && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleRetrain}
+                    disabled={retraining}
+                    startIcon={retraining ? <Spinner className="h-4 w-4 text-current" /> : undefined}
+                  >
+                    {retraining ? "Reentrenando…" : "Reentrenar modelos"}
+                  </Button>
+                )}
               </div>
             </div>
             <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
               La <strong>fecha de corte</strong> marca hasta dónde son datos y desde dónde es pronóstico: lo
               registrado después de esa fecha se excluye del entrenamiento y esos meses pasan a predecirse.
-              Úsala cuando haya cargas de prueba o un mes en curso que no deban contaminar los modelos.
-              Déjala vacía para entrenar con todo el historial. Desde{" "}
-              <Link to="/configuracion" className="font-medium text-brand-500 hover:text-brand-600">
-                Configuración
-              </Link>{" "}
-              puedes exceptuar del corte a los pronósticos de tasa de cambio, para proyectarlos siempre desde la
-              tasa más reciente.{" "}
+              {canRetrain ? (
+                <>
+                  {" "}Úsala cuando haya cargas de prueba o un mes en curso que no deban contaminar los modelos.
+                  Déjala vacía para entrenar con todo el historial. Desde{" "}
+                  <Link to="/configuracion" className="font-medium text-brand-500 hover:text-brand-600">
+                    Configuración
+                  </Link>{" "}
+                  puedes exceptuar del corte a los pronósticos de tasa de cambio, para proyectarlos siempre desde la
+                  tasa más reciente.{" "}
+                </>
+              ) : (
+                <> La fija el administrador del sistema. </>
+              )}
               {data.training_cutoff?.active ? (
                 <span className="font-medium text-gray-700 dark:text-gray-300">
                   Corte vigente: {data.training_cutoff.effective_label} ({data.training_cutoff.effective}).
@@ -239,8 +257,17 @@ export default function PredictionsOverview() {
             )}
             {data.registry.length === 0 ? (
               <p className="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                No hay modelos registrados. Pulsa <strong>Reentrenar modelos</strong> o ejecuta{" "}
-                <code className="rounded bg-gray-100 px-1 dark:bg-gray-800">python manage.py train_models</code>.
+                {canRetrain ? (
+                  <>
+                    No hay modelos registrados. Pulsa <strong>Reentrenar modelos</strong> o ejecuta{" "}
+                    <code className="rounded bg-gray-100 px-1 dark:bg-gray-800">python manage.py train_models</code>.
+                  </>
+                ) : (
+                  <>
+                    No hay modelos registrados. Pídele al administrador del sistema que los entrene; mientras
+                    tanto, los pronósticos se entrenan bajo demanda al abrir cada gráfico.
+                  </>
+                )}
               </p>
             ) : (
               <div className="max-w-full overflow-x-auto custom-scrollbar">
