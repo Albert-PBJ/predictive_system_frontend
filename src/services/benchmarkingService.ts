@@ -14,6 +14,13 @@ export interface BenchRange {
   months: number;
   data_from: string;
   data_to: string;
+  /**
+   * Solo en "Predicciones": el backend amplía el rango a los datos disponibles cuando
+   * el pedido dejaría los gráficos vacíos, y aquí reporta el original.
+   */
+  auto_adjusted?: boolean;
+  requested_from?: string | null;
+  requested_to?: string | null;
 }
 
 // --- Comparaciones (descriptivo) ---
@@ -148,6 +155,8 @@ export interface BenchChart {
   forecast: ForecastPoint[];
   model: ModelInfo;
   own_series: number[] | null; // alineado a [...history, ...forecast]
+  /** Meses observados: con 1 no hay tendencia (la proyección mantiene el nivel). */
+  n_periods?: number;
 }
 
 export interface CategoryForecast extends BenchChart {
@@ -200,7 +209,16 @@ export interface ProductForecast {
   competitors: string[];
   competitor_series: NamedSeries | null;
   own_series: NamedSeries | null;
-  meta: { n_obs: number; n_competitors: number; insufficient_data?: boolean };
+  meta: {
+    n_obs: number;
+    n_competitors: number;
+    insufficient_data?: boolean;
+    // Ventana realmente usada: se amplía sola si el producto no tenía observaciones
+    // del competidor elegido en el rango pedido.
+    auto_adjusted?: boolean;
+    range_from?: string | null;
+    range_to?: string | null;
+  };
 }
 
 function rangeParams(range?: Partial<DateRange>): Record<string, string> {

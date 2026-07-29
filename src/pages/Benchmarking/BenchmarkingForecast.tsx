@@ -33,6 +33,8 @@ function verdictColor(key: string): "success" | "warning" | "error" | "info" {
       return "error";
     case "stable":
       return "info";
+    // "flat" = un solo mes observado (sin tendencia) y "unknown" = sin precio propio
+    // de referencia: ambos son avisos, no veredictos.
     default:
       return "warning";
   }
@@ -45,7 +47,9 @@ const gapPct = (own: number | null, comp: number | null) => (own != null && comp
 export default function BenchmarkingForecast() {
   // Mismo rango que "Comparaciones" (ámbito benchmarking), conservado al navegar.
   const { range, setRange } = useDateRange("benchmarking");
-  const [horizon, setHorizon] = useState(6);
+  // 3 meses por defecto: las series de competencia son cortas (a menudo 1-6 meses
+  // observados), así que un horizonte más largo extrapola más de lo que sostiene el dato.
+  const [horizon, setHorizon] = useState(3);
   const [product, setProduct] = useState<number | null>(null);
   const [competitor, setCompetitor] = useState<string>(ALL_COMPETITORS);
 
@@ -80,27 +84,33 @@ export default function BenchmarkingForecast() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range.from, range.to, horizon, competitor]);
 
-  // Comparación del producto seleccionado (competidor vs. interno).
+  // Ventana EFECTIVA: el backend amplía el rango a los datos disponibles cuando el
+  // pedido dejaría esta pestaña vacía (auto-ajuste, exclusivo de Predicciones), así que
+  // la respuesta manda. Mientras recarga se muestra lo que acaba de elegir el usuario.
+  const effFrom = forecast?.range.from ?? "";
+  const effTo = forecast?.range.to ?? "";
+  const displayFrom = (loading && range.from) || effFrom;
+  const displayTo = (loading && range.to) || effTo;
+  const autoAdjusted = forecast?.range.auto_adjusted === true;
+
+  // Comparación del producto seleccionado (competidor vs. interno), sobre la ventana
+  // efectiva (si no, el gráfico volvería a quedar vacío en el rango original).
   useEffect(() => {
-    if (!product) {
+    if (!product || !effFrom) {
       setPf(null);
       return;
     }
     let active = true;
     setPfLoading(true);
     benchmarkingService
-      .productForecast(range, product, competitor, horizon)
+      .productForecast({ from: effFrom, to: effTo }, product, competitor, horizon)
       .then((d) => active && setPf(d))
       .catch((e) => active && setError(getApiError(e, "No se pudo cargar la comparación del producto.")))
       .finally(() => active && setPfLoading(false));
     return () => {
       active = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [range.from, range.to, horizon, product, competitor]);
-
-  const displayFrom = range.from ?? forecast?.range.from ?? "";
-  const displayTo = range.to ?? forecast?.range.to ?? "";
+  }, [effFrom, effTo, horizon, product, competitor]);
 
   const productOptions = (forecast?.matched_products || []).map((m) => ({
     value: String(m.product_id),
@@ -170,127 +180,151 @@ export default function BenchmarkingForecast() {
             loading={loading || pfLoading}
           />
 
+          {/* Aviso de auto-ajuste: el rango pedido no tenía datos comparables y el backend
+              lo movió a la ventana con datos (la del competidor, si hay uno filtrado). */}
+          {autoAdjusted && (
+            <Alert
+              variant="info"
+              title="Rango ajustado automáticamente"
+              message={`${
+                forecast.range.requested_from && forecast.range.requested_to
+                  ? `El período ${forecast.range.requested_from} – ${forecast.range.requested_to} no tenía datos suficientes${
+                      singleCompetitor ? ` de ${competitor}` : ""
+                    }. `
+                  : ""
+              }Se ajustó a la ventana con datos${singleCompetitor ? ` de ${competitor}` : ""}: ${forecast.range.from} – ${
+                forecast.range.to
+              } (${forecast.range.from_label} – ${forecast.range.to_label}).`}
+            />
+          )}
+
           {/* Resumen automatizado del periodo */}
           <NarrativeBanner
             sentences={forecast.narrative}
             rangeLabel={`${forecast.range.from_label} – ${forecast.range.to_label}`}
           />
 
-          {forecast.matched_products.length === 0 ? (
-            <div className="flex h-60 items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 text-center text-sm text-gray-500 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-400">
-              {singleCompetitor ? (
-                <span>
-                  {competitor} no tiene productos con equivalente en nuestro catálogo en este período. Elige
-                  «Todos los competidores» o amplía el rango.
-                </span>
-              ) : (
-                <span>
-                  No hay productos con equivalente en la competencia en este período. Ejecuta los scrapers de "Datos
-                  externos" o <code>rematch_products</code> para asociar la oferta scrapeada al catálogo.
-                </span>
-              )}
+          {/* Selectores. El competidor es un filtro de página (enfoca la tabla por
+              categoría y la lista de productos comparables); el producto pinta el
+              gráfico de comparación de precio. Se muestran SIEMPRE (aunque el
+              competidor elegido no tenga productos comparables), si no el usuario
+              quedaba atrapado sin poder cambiar de competidor. */}
+          <div className="flex flex-wrap items-end gap-4 rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03] sm:p-5">
+            <div className="w-64">
+              <Label>Competidor</Label>
+              <Select
+                key={`comp-${competitor}`}
+                options={competitorOptions}
+                defaultValue={competitor}
+                onChange={setCompetitor}
+              />
             </div>
-          ) : (
-            <>
-              {/* Selectores. El competidor es un filtro de página (enfoca la tabla por
-                  categoría y la lista de productos comparables); el producto pinta el
-                  gráfico de comparación de precio. */}
-              <div className="flex flex-wrap items-end gap-4 rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03] sm:p-5">
-                <div className="w-64">
-                  <Label>Competidor</Label>
-                  <Select
-                    key={`comp-${competitor}`}
-                    options={competitorOptions}
-                    defaultValue={competitor}
-                    onChange={setCompetitor}
-                  />
-                </div>
-                <div className="w-72">
-                  <Label>Producto</Label>
-                  <Select
-                    key={`prod-${product}`}
-                    options={productOptions}
-                    defaultValue={product ? String(product) : ""}
-                    placeholder="Selecciona un producto"
-                    onChange={(v) => setProduct(Number(v))}
-                  />
-                </div>
-                <div className="w-40">
-                  <Label>Horizonte</Label>
-                  <Select options={HORIZON_OPTIONS} defaultValue={String(horizon)} onChange={(v) => setHorizon(Number(v))} />
-                </div>
-              </div>
+            <div className="w-72">
+              <Label>Producto</Label>
+              <Select
+                key={`prod-${product}`}
+                options={productOptions}
+                defaultValue={product ? String(product) : ""}
+                placeholder="Selecciona un producto"
+                onChange={(v) => setProduct(Number(v))}
+              />
+            </div>
+            <div className="w-40">
+              <Label>Horizonte</Label>
+              <Select options={HORIZON_OPTIONS} defaultValue={String(horizon)} onChange={(v) => setHorizon(Number(v))} />
+            </div>
+          </div>
 
-              {/* Comparación del producto */}
-              <div className={pfLoading ? "pointer-events-none space-y-4 opacity-60 transition md:space-y-6" : "space-y-4 transition md:space-y-6"}>
-                {pfInsufficient ? (
-                  <div className="flex h-60 items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 text-center text-sm text-gray-500 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-400">
-                    No hay suficientes observaciones de competencia para este producto/competidor en el rango. Prueba con
-                    "Todos los competidores" o amplía el período.
-                  </div>
+          {/* Comparación del producto */}
+          <div className={pfLoading ? "pointer-events-none space-y-4 opacity-60 transition md:space-y-6" : "space-y-4 transition md:space-y-6"}>
+            {forecast.matched_products.length === 0 ? (
+              <div className="flex h-60 items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 text-center text-sm text-gray-500 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-400">
+                {singleCompetitor ? (
+                  <span>
+                    {competitor} no tiene productos con equivalente en nuestro catálogo
+                    {autoAdjusted ? " en ninguna fecha con datos" : " en este período"}, así que no hay comparación
+                    por producto. Abajo sigue la brecha por categoría; elige «Todos los competidores» o ejecuta{" "}
+                    <code>rematch_products</code> para asociar su oferta al catálogo.
+                  </span>
                 ) : (
-                  <>
-                    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                      <StatCard label="Competidor (actual)" value={fmtUSD(compCur)} />
-                      <StatCard label="Competidor (proyectado)" value={fmtUSD(compProj)} hint={`+${horizon} meses`} />
-                      <StatCard label="Brecha actual" value={fmtPct(gapPct(ownCur, compCur))} hint="nuestro vs. competidor" />
-                      <StatCard label="Brecha proyectada" value={fmtPct(gapPct(ownProj, compProj))} hint="nuestro vs. competidor" />
-                    </div>
-
-                    <ChartCard
-                      title={pf?.product ? pf.product.name : "Comparación de precio"}
-                      subtitle="Precio del competidor vs. nuestro precio interno (histórico sólido · pronóstico discontinuo)"
-                    >
-                      <PriceCompareChart series={series} />
-                    </ChartCard>
-
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
-                      {pf?.competitor_series && (
-                        <div>
-                          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">Modelo · Competidor</p>
-                          <ModelMetricsCard model={pf.competitor_series.model} />
-                        </div>
-                      )}
-                      {pf?.own_series && (
-                        <div>
-                          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">Modelo · Interno</p>
-                          <ModelMetricsCard model={pf.own_series.model} />
-                        </div>
-                      )}
-                    </div>
-                  </>
+                  <span>
+                    No hay productos con equivalente en la competencia. Ejecuta los scrapers de "Datos externos" o{" "}
+                    <code>rematch_products</code> para asociar la oferta scrapeada al catálogo.
+                  </span>
                 )}
               </div>
+            ) : pfInsufficient ? (
+              <div className="flex h-60 items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 text-center text-sm text-gray-500 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-400">
+                No hay observaciones de competencia para este producto/competidor en ninguna fecha con datos. Prueba
+                con otro producto o con «Todos los competidores».
+              </div>
+            ) : (
+              <>
+                {pf?.meta?.auto_adjusted && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Este producto no tenía observaciones en el rango mostrado: la comparación usa su ventana con
+                    datos ({pf.meta.range_from} – {pf.meta.range_to}).
+                  </p>
+                )}
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                  <StatCard label="Competidor (actual)" value={fmtUSD(compCur)} />
+                  <StatCard label="Competidor (proyectado)" value={fmtUSD(compProj)} hint={`+${horizon} meses`} />
+                  <StatCard label="Brecha actual" value={fmtPct(gapPct(ownCur, compCur))} hint="nuestro vs. competidor" />
+                  <StatCard label="Brecha proyectada" value={fmtPct(gapPct(ownProj, compProj))} hint="nuestro vs. competidor" />
+                </div>
 
-              {/* Brecha de competitividad por categoría (panorama de cartera) */}
-              <ChartCard
-                title="Brecha de competitividad por categoría"
-                subtitle={
-                  singleCompetitor
-                    ? `Diferencia proyectada entre nuestro precio de catálogo y el de ${competitor} (positivo = más caros que ese competidor)`
-                    : "Diferencia proyectada entre nuestro precio de catálogo y el de mercado (positivo = más caros que el mercado)"
-                }
-              >
-                <RankTable<CategoryForecast>
-                  rows={forecast.by_category}
-                  empty="Sin categorías con suficientes datos para proyectar."
-                  columns={[
-                    { key: "category", label: "Categoría", render: (r) => <span className="font-medium text-gray-800 dark:text-white/90">{r.category}</span> },
-                    { key: "current_market", label: "Mercado actual", align: "right", render: (r) => fmtUSD(r.current_market) },
-                    { key: "projected_market", label: "Mercado proyectado", align: "right", render: (r) => fmtUSD(r.projected_market) },
-                    { key: "current_own", label: "Nuestro precio", align: "right", render: (r) => (r.current_own != null ? fmtUSD(r.current_own) : "—") },
-                    { key: "current_gap_pct", label: "Brecha actual", align: "right", render: (r) => fmtPct(r.current_gap_pct) },
-                    { key: "projected_gap_pct", label: "Brecha proy.", align: "right", render: (r) => fmtPct(r.projected_gap_pct) },
-                    {
-                      key: "verdict",
-                      label: "Veredicto",
-                      render: (r) => <Badge variant="light" color={verdictColor(r.verdict.key)} size="sm">{r.verdict.label}</Badge>,
-                    },
-                  ]}
-                />
-              </ChartCard>
-            </>
-          )}
+                <ChartCard
+                  title={pf?.product ? pf.product.name : "Comparación de precio"}
+                  subtitle="Precio del competidor vs. nuestro precio interno (histórico sólido · pronóstico discontinuo)"
+                >
+                  <PriceCompareChart series={series} />
+                </ChartCard>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
+                  {pf?.competitor_series && (
+                    <div>
+                      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">Modelo · Competidor</p>
+                      <ModelMetricsCard model={pf.competitor_series.model} />
+                    </div>
+                  )}
+                  {pf?.own_series && (
+                    <div>
+                      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">Modelo · Interno</p>
+                      <ModelMetricsCard model={pf.own_series.model} />
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Brecha de competitividad por categoría (panorama de cartera) */}
+          <ChartCard
+            title="Brecha de competitividad por categoría"
+            subtitle={
+              singleCompetitor
+                ? `Diferencia proyectada entre nuestro precio de catálogo y el de ${competitor} (positivo = más caros que ese competidor)`
+                : "Diferencia proyectada entre nuestro precio de catálogo y el de mercado (positivo = más caros que el mercado)"
+            }
+          >
+            <RankTable<CategoryForecast>
+              rows={forecast.by_category}
+              empty="Sin categorías con suficientes datos para proyectar."
+              columns={[
+                { key: "category", label: "Categoría", render: (r) => <span className="font-medium text-gray-800 dark:text-white/90">{r.category}</span> },
+                { key: "current_market", label: "Mercado actual", align: "right", render: (r) => fmtUSD(r.current_market) },
+                { key: "projected_market", label: "Mercado proyectado", align: "right", render: (r) => fmtUSD(r.projected_market) },
+                { key: "current_own", label: "Nuestro precio", align: "right", render: (r) => (r.current_own != null ? fmtUSD(r.current_own) : "—") },
+                { key: "current_gap_pct", label: "Brecha actual", align: "right", render: (r) => fmtPct(r.current_gap_pct) },
+                { key: "projected_gap_pct", label: "Brecha proy.", align: "right", render: (r) => fmtPct(r.projected_gap_pct) },
+                {
+                  key: "verdict",
+                  label: "Veredicto",
+                  render: (r) => <Badge variant="light" color={verdictColor(r.verdict.key)} size="sm">{r.verdict.label}</Badge>,
+                },
+              ]}
+            />
+          </ChartCard>
         </div>
       )}
     </>

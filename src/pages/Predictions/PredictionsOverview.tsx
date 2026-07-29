@@ -216,7 +216,12 @@ export default function PredictionsOverview() {
               La <strong>fecha de corte</strong> marca hasta dónde son datos y desde dónde es pronóstico: lo
               registrado después de esa fecha se excluye del entrenamiento y esos meses pasan a predecirse.
               Úsala cuando haya cargas de prueba o un mes en curso que no deban contaminar los modelos.
-              Déjala vacía para entrenar con todo el historial.{" "}
+              Déjala vacía para entrenar con todo el historial. Desde{" "}
+              <Link to="/configuracion" className="font-medium text-brand-500 hover:text-brand-600">
+                Configuración
+              </Link>{" "}
+              puedes exceptuar del corte a los pronósticos de tasa de cambio, para proyectarlos siempre desde la
+              tasa más reciente.{" "}
               {data.training_cutoff?.active ? (
                 <span className="font-medium text-gray-700 dark:text-gray-300">
                   Corte vigente: {data.training_cutoff.effective_label} ({data.training_cutoff.effective}).

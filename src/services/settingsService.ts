@@ -42,8 +42,10 @@ export interface SystemSettingsData {
   // Valores por defecto de negocio
   default_iva_pct: string;
   default_quote_expiry_days: number;
-  // Módulo predictivo: fecha de corte del entrenamiento ("" / null = sin corte)
+  // Módulo predictivo: fecha de corte del entrenamiento ("" / null = sin corte) y la
+  // excepción que deja a los modelos de tasa entrenarse con el dato más reciente.
   training_cutoff_date: string | null;
+  rates_ignore_training_cutoff: boolean;
   // Empresa
   company_name: string;
   company_rif: string;
@@ -69,17 +71,23 @@ export interface LatestRate {
 // Hasta dónde llegan los datos cargados y qué corte aplica el módulo predictivo.
 // `cutoff.effective` puede diferir de lo configurado: el backend lo ajusta al último
 // mes cerrado, porque las series de los modelos son mensuales.
+export interface CutoffInfo {
+  active: boolean;
+  configured: string | null;
+  effective: string | null;
+  effective_period: string | null;
+  effective_label: string | null;
+  adjusted: boolean;
+  // Solo en `rates_cutoff`: hay corte, pero las tasas están exceptuadas de él.
+  rates_exempt?: boolean;
+}
+
 export interface TrainingDataMeta {
   last_sale_date: string | null;
   last_rate_date: string | null;
-  cutoff: {
-    active: boolean;
-    configured: string | null;
-    effective: string | null;
-    effective_period: string | null;
-    effective_label: string | null;
-    adjusted: boolean;
-  };
+  cutoff: CutoffInfo;
+  // Corte que realmente aplican las series de tasa de cambio.
+  rates_cutoff: CutoffInfo;
 }
 
 export interface SettingsMeta {

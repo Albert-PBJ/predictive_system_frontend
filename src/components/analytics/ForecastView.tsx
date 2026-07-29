@@ -110,13 +110,21 @@ export default function ForecastView({
         {error && <Alert variant="error" title="Error" message={error} />}
 
         {/* Fecha de corte: deja explícito hasta dónde llegan los datos reales usados para
-            entrenar y desde qué mes todo es pronóstico. */}
+            entrenar y desde qué mes todo es pronóstico. Las tasas pueden estar
+            exceptuadas del corte, y entonces se dice explícitamente. */}
         {data?.training_cutoff?.active && (
           <p className="mb-4 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:bg-white/[0.03] dark:text-gray-400">
             Entrenado con datos hasta <strong>{data.training_cutoff.effective_label}</strong> (
             {data.training_cutoff.effective}); los meses posteriores son pronóstico.
             {data.training_cutoff.adjusted &&
               ` La fecha configurada (${data.training_cutoff.configured}) se ajustó al último mes cerrado.`}
+          </p>
+        )}
+        {data?.training_cutoff?.rates_exempt && (
+          <p className="mb-4 rounded-lg bg-brand-50 px-3 py-2 text-xs text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
+            Entrenado con las <strong>tasas más recientes</strong>, ignorando la fecha de corte del sistema (
+            {data.training_cutoff.configured}) — excepción activada en Configuración. Los demás pronósticos sí la
+            respetan.
           </p>
         )}
 

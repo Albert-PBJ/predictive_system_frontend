@@ -166,6 +166,9 @@ export default function BenchmarkingComparison() {
                         series={[{ name: "Observaciones", data: data.promotions.breakdown.map((p) => p.count) }]}
                         horizontal
                         distributed
+                        // Con muchas promociones el gráfico crece y hace scroll
+                        // vertical dentro de este alto (ver BarChart).
+                        height={340}
                         valueFormatter={fmtInt}
                       />
                     ) : (

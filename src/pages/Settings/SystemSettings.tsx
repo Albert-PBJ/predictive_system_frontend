@@ -26,7 +26,8 @@ type BooleanKey =
   | "use_vision_price_ocr"
   | "ocr_use_gpu"
   | "ocr_assume_usd_for_bare_number"
-  | "discard_instagram_without_price";
+  | "discard_instagram_without_price"
+  | "rates_ignore_training_cutoff";
 
 // El formulario plano maneja solo campos escalares. `price_bands` es anidado y se
 // gestiona en su propio estado (ver BandsForm).
@@ -557,6 +558,21 @@ export default function SystemSettings() {
               onChange={(e) => set("training_cutoff_date", e.target.value)}
             />
           </Field>
+
+          <div>
+            <Switch
+              label="Exceptuar las tasas de cambio del corte"
+              defaultChecked={bool("rates_ignore_training_cutoff")}
+              onChange={(c) => set("rates_ignore_training_cutoff", c)}
+            />
+            <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+              Los pronósticos de tasa (Dólar BCV, Euro BCV y paralelo) se entrenan con las tasas más recientes e
+              ignoran la fecha de corte. Úsalo cuando el corte exista por ventas de prueba pero las tasas cargadas
+              sí sean reales. <strong>Solo afecta a los modelos de tasa</strong>; ventas, utilidad, demanda,
+              precio y conversión siguen respetando el corte, con sus métricas intactas.
+            </p>
+          </div>
+
           <div className="rounded-lg bg-gray-50 p-4 text-sm dark:bg-white/[0.03]">
             <p className="text-gray-700 dark:text-gray-300">
               {meta?.training_data.cutoff.active ? (
@@ -571,6 +587,12 @@ export default function SystemSettings() {
                 <>Sin corte: los modelos usan todo el historial disponible.</>
               )}
             </p>
+            {meta?.training_data.rates_cutoff.rates_exempt ? (
+              <p className="mt-1 text-xs text-brand-500">
+                Tasas de cambio exceptuadas: se entrenan hasta el dato más reciente
+                {meta.training_data.last_rate_date ? ` (${meta.training_data.last_rate_date})` : ""}.
+              </p>
+            ) : null}
             {meta?.training_data.cutoff.adjusted ? (
               <p className="mt-1 text-xs text-warning-600">
                 La fecha configurada ({meta.training_data.cutoff.configured}) cae a mitad de mes; como

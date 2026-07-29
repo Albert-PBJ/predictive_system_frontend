@@ -70,6 +70,9 @@ export interface TrainingCutoff {
   effective_period: string | null;
   effective_label: string | null;
   adjusted: boolean;
+  // Solo en el pronóstico de tasas: hay corte configurado, pero las tasas están
+  // exceptuadas y se entrenan con el dato más reciente.
+  rates_exempt?: boolean;
 }
 
 export interface ForecastResponse {

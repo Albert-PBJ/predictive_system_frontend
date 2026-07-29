@@ -22,6 +22,11 @@ interface BarChartProps {
   /** Mostrar leyenda (útil con varias series). */
   showLegend?: boolean;
   minWidth?: number;
+  /**
+   * Alto mínimo por barra (solo en horizontal). Si las categorías no caben en
+   * `height`, el gráfico crece y el contenedor hace scroll vertical.
+   */
+  rowHeight?: number;
 }
 
 /** Gráfico de barras reutilizable (vertical/horizontal, simple/apilado). */
@@ -36,6 +41,7 @@ export default function BarChart({
   colors,
   showLegend,
   minWidth,
+  rowHeight = 34,
 }: BarChartProps) {
   const { theme } = useTheme();
   const dark = theme === "dark";
@@ -55,6 +61,13 @@ export default function BarChart({
       : series.map((s, i) => s.color ?? pickColors(series.length)[i]));
 
   const legend = showLegend ?? series.length > 1;
+
+  // Con muchas categorías las barras horizontales se comprimen hasta ser
+  // ilegibles: en ese caso el gráfico crece a `rowHeight` por barra y el
+  // contenedor se limita a `height` con scroll vertical.
+  const neededHeight = categories.length * rowHeight + 48;
+  const scrollY = horizontal && neededHeight > height;
+  const chartHeight = scrollY ? neededHeight : height;
 
   const options: ApexOptions = {
     chart: {
@@ -102,6 +115,9 @@ export default function BarChart({
       labels: {
         style: { colors: dark ? "#98a2b3" : "#667085", fontSize: "11px" },
         formatter: horizontal ? undefined : (v: number) => valueFormatter(v),
+        // En horizontal el eje Y lleva las etiquetas de categoría: damos más
+        // ancho para que textos largos (p. ej. promociones) no se corten.
+        ...(horizontal ? { maxWidth: 220 } : {}),
       },
     },
     fill: { opacity: 1 },
@@ -114,9 +130,12 @@ export default function BarChart({
   };
 
   return (
-    <div className="max-w-full overflow-x-auto custom-scrollbar">
+    <div
+      className="max-w-full overflow-x-auto custom-scrollbar"
+      style={scrollY ? { maxHeight: height, overflowY: "auto" } : undefined}
+    >
       <div style={{ minWidth: minWidth ?? (horizontal ? 0 : Math.max(categories.length * 48, 320)) }}>
-        <Chart options={options} series={series} type="bar" height={height} />
+        <Chart options={options} series={series} type="bar" height={chartHeight} />
       </div>
     </div>
   );
