@@ -28,7 +28,7 @@ import {
   type NewQuote,
   type Quote,
 } from "../../services/quotesService";
-import { salesService, type LatestRate } from "../../services/salesService";
+import { salesService, rateBasisLabel, type LatestRate } from "../../services/salesService";
 import { getApiError } from "../../services/apiError";
 import { fmtUSD, fmtVES, todayISO } from "../../utils/format";
 
@@ -374,7 +374,7 @@ export default function CreateQuote() {
               </div>
               {rate ? (
                 <Badge variant="light" color="info" size="sm">
-                  Tasa {rate.source}: {fmtVES(rate.effective_rate)} / USD
+                  Tasa {rateBasisLabel(rate.rate_basis)}: {fmtVES(rate.effective_rate)} / USD
                 </Badge>
               ) : (
                 <p className="text-xs text-warning-500">

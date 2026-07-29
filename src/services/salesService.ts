@@ -63,6 +63,7 @@ export interface Sale {
   balance_usd: string;
   is_fully_paid: boolean;
   bcv_rate: string | null;
+  eur_bcv_rate: string | null;
   parallel_rate: string | null;
   // Facturación fiscal (opcional; se completa con la acción "Facturar").
   invoice_number: string | null;
@@ -141,12 +142,28 @@ export interface SaleListParams {
 export interface LatestRate {
   date: string;
   bcv_rate: string;
+  eur_bcv_rate: string | null;
   parallel_rate: string | null;
   effective_rate: string;
+  // Base con la que se convierte USD→VES (Configuración del Sistema).
+  rate_basis?: RateBasis;
   source: string;
   // IVA por defecto (%) configurado en la Configuración del Sistema.
   iva_rate?: string;
 }
+
+export type RateBasis = "BCV" | "EUR" | "PAR" | "AVG";
+
+// Etiqueta legible de la base de conversión, para mostrarla junto al total en Bs.
+export const RATE_BASIS_LABEL: Record<RateBasis, string> = {
+  BCV: "Dólar BCV",
+  EUR: "Euro BCV",
+  PAR: "Paralelo",
+  AVG: "Promedio Dólar BCV/Paralelo",
+};
+
+export const rateBasisLabel = (basis?: string) =>
+  RATE_BASIS_LABEL[(basis as RateBasis) ?? "BCV"] ?? "Dólar BCV";
 
 export const salesService = {
   async list(params: SaleListParams = {}): Promise<Paginated<Sale>> {

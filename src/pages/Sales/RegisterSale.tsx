@@ -31,6 +31,7 @@ import {
   salesService,
   SALE_TYPES,
   PAYMENT_METHODS,
+  rateBasisLabel,
   type LatestRate,
   type NewSale,
   type Sale,
@@ -799,7 +800,7 @@ export default function RegisterSale() {
               </div>
               {rate ? (
                 <Badge variant="light" color="info" size="sm">
-                  Tasa {rate.source}: {fmtVES(rate.effective_rate)} / USD
+                  Tasa {rateBasisLabel(rate.rate_basis)}: {fmtVES(rate.effective_rate)} / USD
                 </Badge>
               ) : (
                 <p className="text-xs text-warning-500">

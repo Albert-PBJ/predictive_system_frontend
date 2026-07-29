@@ -4,16 +4,23 @@ import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import Select from "../../components/form/Select";
 import Label from "../../components/form/Label";
 import ForecastView from "../../components/analytics/ForecastView";
-import { analyticsService, type ForecastResponse } from "../../services/analyticsService";
+import {
+  analyticsService,
+  RATE_OPTIONS,
+  type ForecastResponse,
+  type RateKey,
+} from "../../services/analyticsService";
 import { getApiError } from "../../services/apiError";
 
-const RATES = [
-  { value: "bcv", label: "Tasa BCV (oficial)" },
-  { value: "parallel", label: "Euro BCV" },
-];
+// Descripción de cada tasa para el texto de la página.
+const RATE_NOTE: Record<RateKey, string> = {
+  bcv: "Dólar BCV (oficial, Bs/USD)",
+  eur: "Euro BCV (oficial, Bs/EUR)",
+  parallel: "dólar paralelo (referencial, Bs/USD)",
+};
 
 export default function ExchangeRateForecast() {
-  const [rate, setRate] = useState<"bcv" | "parallel">("bcv");
+  const [rate, setRate] = useState<RateKey>("bcv");
   const [horizon, setHorizon] = useState(6);
   const [logScale, setLogScale] = useState(false);
   const [data, setData] = useState<ForecastResponse | null>(null);
@@ -36,11 +43,15 @@ export default function ExchangeRateForecast() {
 
   return (
     <>
-      <PageMeta title="Pronóstico de la tasa de cambio" description="Proyección de la tasa BCV y Euro BCV" />
-      <PageBreadcrumb pageTitle="Tasa de cambio (BCV)" />
+      <PageMeta
+        title="Pronóstico de la tasa de cambio"
+        description="Proyección del Dólar BCV, el Euro BCV y el paralelo"
+      />
+      <PageBreadcrumb pageTitle="Tasa de cambio" />
       <p className="mb-5 max-w-3xl text-sm text-gray-500 dark:text-gray-400">
-        Proyección de la tasa {rate === "bcv" ? "BCV oficial" : "Euro BCV"} (Bs/USD) con regresión lineal sobre el
-        logaritmo de la tasa, que captura la devaluación exponencial del bolívar. Activa la escala logarítmica para
+        Proyección de la tasa <strong>{RATE_NOTE[rate]}</strong> con regresión lineal sobre el logaritmo de la tasa,
+        que captura la devaluación exponencial del bolívar. Las dos oficiales del BCV son las operativas (con las que
+        se factura); el paralelo se sigue como referencia del valor real del dinero. Activa la escala logarítmica para
         ver mejor la tendencia.
       </p>
 
@@ -57,7 +68,7 @@ export default function ExchangeRateForecast() {
           <>
             <div className="w-52">
               <Label>Tasa</Label>
-              <Select options={RATES} defaultValue={rate} onChange={(v) => setRate(v as "bcv" | "parallel")} />
+              <Select options={RATE_OPTIONS} defaultValue={rate} onChange={(v) => setRate(v as RateKey)} />
             </div>
             <div className="flex h-11 items-center">
               <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-600 dark:text-gray-400">

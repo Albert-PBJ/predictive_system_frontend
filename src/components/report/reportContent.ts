@@ -185,7 +185,7 @@ export function buildRisks(d: ExecutiveDashboard): ReportRisk[] {
       severity: "medium",
       title: "Presión del tipo de cambio",
       text:
-        `El Euro BCV subió ${fmtPct(d.exchange_rate.parallel_change_pct)} en el periodo ` +
+        `El dólar paralelo subió ${fmtPct(d.exchange_rate.parallel_change_pct)} en el periodo ` +
         `(cierre ${fmtVES(d.exchange_rate.end_parallel)}). Encarece los productos y suele frenar la demanda.`,
     });
   }
@@ -239,11 +239,15 @@ export function buildEstimations(
           : ""),
     });
   }
-  if (h.next_bcv || h.next_parallel) {
+  if (h.next_bcv || h.next_eur || h.next_parallel) {
+    const sub = [
+      h.next_eur ? `Euro BCV ${fmtVES(h.next_eur.value)}` : null,
+      h.next_parallel ? `paralelo ${fmtVES(h.next_parallel.value)}` : null,
+    ].filter(Boolean);
     items.push({
       label: "Tipo de cambio (próx. mes)",
-      value: `${h.next_bcv ? fmtVES(h.next_bcv.value) : "—"} BCV`,
-      sub: h.next_parallel ? `Euro BCV proyectado ${fmtVES(h.next_parallel.value)}. Seguiría su tendencia al alza.` : undefined,
+      value: `${h.next_bcv ? fmtVES(h.next_bcv.value) : "—"} Dólar BCV`,
+      sub: sub.length ? `Proyectado: ${sub.join(" · ")}. Seguirían su tendencia al alza.` : undefined,
     });
   }
   if (h.pipeline) {

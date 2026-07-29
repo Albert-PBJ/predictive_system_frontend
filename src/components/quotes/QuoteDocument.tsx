@@ -233,7 +233,9 @@ export default function QuoteDocument({ quote, company }: QuoteDocumentProps) {
           ))}
           <Text style={styles.notesText}>
             • Precios expresados en dólares estadounidenses (USD); el equivalente en bolívares se calcula a la tasa
-            {quote.parallel_rate ? ` (${VES(quote.parallel_rate)}/USD)` : ""} vigente a la fecha de emisión y puede variar.
+            oficial del BCV{quote.bcv_rate ? ` (Dólar BCV ${VES(quote.bcv_rate)}/USD` : ""}
+            {quote.bcv_rate && quote.eur_bcv_rate ? `, Euro BCV ${VES(quote.eur_bcv_rate)}/EUR` : ""}
+            {quote.bcv_rate ? ")" : ""} vigente a la fecha de emisión y puede variar.
           </Text>
           <Text style={styles.notesText}>
             • Este presupuesto es una oferta de precios sujeta a disponibilidad y no constituye una factura.

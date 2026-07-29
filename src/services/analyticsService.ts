@@ -49,6 +49,16 @@ export interface DetailEntry {
 
 export type ValueKind = "int" | "usd" | "ves" | "rate" | "percent";
 
+// Las tres tasas pronosticables. `bcv` (Dólar BCV, Bs/USD) y `eur` (Euro BCV, Bs/EUR)
+// son las operativas; `parallel` es el paralelo, referencia analítica.
+export type RateKey = "bcv" | "eur" | "parallel";
+
+export const RATE_OPTIONS: { value: RateKey; label: string }[] = [
+  { value: "bcv", label: "Dólar BCV" },
+  { value: "eur", label: "Euro BCV" },
+  { value: "parallel", label: "Paralelo" },
+];
+
 // Fecha de corte del entrenamiento: hasta dónde llegan los datos que ven los modelos.
 // `configured` es lo que eligió el usuario; `effective` lo que realmente se aplica (el
 // backend lo ajusta al último mes cerrado, porque las series son mensuales), y
@@ -166,6 +176,7 @@ export interface OverviewResponse {
     next_revenue: ForecastPoint | null;
     revenue_model: ModelInfo | null;
     next_bcv: ForecastPoint | null;
+    next_eur: ForecastPoint | null;
     next_parallel: ForecastPoint | null;
     pipeline: QuoteConversionResponse["pipeline"] | null;
     quote_conversion_rate: number | null;
@@ -352,7 +363,7 @@ export const analyticsService = {
     const { data } = await api.get<ForecastResponse>("/analytics/forecast/profit", { params: { horizon } });
     return data;
   },
-  async exchangeRate(rate: "bcv" | "parallel", horizon: number): Promise<ForecastResponse> {
+  async exchangeRate(rate: RateKey, horizon: number): Promise<ForecastResponse> {
     const { data } = await api.get<ForecastResponse>("/analytics/forecast/exchange-rate", {
       params: { rate, horizon },
     });

@@ -29,6 +29,7 @@ export interface Quote {
   issued_date: string;
   expiry_date: string | null;
   bcv_rate: string | null;
+  eur_bcv_rate: string | null;
   parallel_rate: string | null;
   includes_installation: boolean;
   includes_delivery: boolean;

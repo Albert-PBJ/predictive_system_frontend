@@ -169,19 +169,25 @@ export interface InventoryHealth {
   inventory_cost_usd?: number;
 }
 
+// `bcv` = Dólar BCV (Bs/USD) y `eur` = Euro BCV (Bs/EUR), las dos tasas operativas;
+// `parallel` es el paralelo (Bs/USD), referencia analítica del valor real del dinero.
 export interface RateSeriesPoint {
   period: string;
   label: string;
   bcv: number | null;
+  eur: number | null;
   parallel: number | null;
 }
 
 export interface ExchangeRateBlock {
   start_bcv: number;
   end_bcv: number;
+  start_eur: number | null;
+  end_eur: number | null;
   start_parallel: number;
   end_parallel: number;
   bcv_change_pct: number | null;
+  eur_change_pct: number | null;
   parallel_change_pct: number | null;
   series: RateSeriesPoint[];
 }

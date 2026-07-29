@@ -38,10 +38,13 @@ type FormState = Record<EditableKey, string | boolean>;
 type BandForm = { min: string; max: string };
 type BandsForm = { categories: Record<string, BandForm>; default: BandForm };
 
+// Bases de conversión USD→VES. Las dos primeras son las tasas OPERATIVAS (oficiales
+// del BCV); el paralelo se mantiene elegible pero su papel es analítico.
 const RATE_BASIS_OPTIONS = [
-  { value: "PAR", label: "Euro BCV" },
-  { value: "BCV", label: "BCV (oficial)" },
-  { value: "AVG", label: "Promedio BCV/Euro BCV" },
+  { value: "BCV", label: "Dólar BCV (oficial)" },
+  { value: "EUR", label: "Euro BCV (oficial)" },
+  { value: "PAR", label: "Paralelo (referencial)" },
+  { value: "AVG", label: "Promedio Dólar BCV/Paralelo" },
 ];
 
 function toForm(data: SystemSettingsData): FormState {
@@ -117,8 +120,9 @@ export default function SystemSettings() {
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
-  // Carga manual de la tasa de cambio.
+  // Carga manual de las tasas de cambio.
   const [bcvInput, setBcvInput] = useState("");
+  const [eurInput, setEurInput] = useState("");
   const [parallelInput, setParallelInput] = useState("");
   const [rateBusy, setRateBusy] = useState(false);
   const [rateMsg, setRateMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -182,7 +186,7 @@ export default function SystemSettings() {
 
   const handleSetRate = async () => {
     if (!bcvInput.trim()) {
-      setRateMsg({ ok: false, text: "Ingresa al menos la tasa BCV." });
+      setRateMsg({ ok: false, text: "Ingresa al menos la tasa Dólar BCV." });
       return;
     }
     setRateBusy(true);
@@ -190,18 +194,21 @@ export default function SystemSettings() {
     try {
       const r = await settingsService.setExchangeRate({
         bcv: bcvInput.trim(),
+        eur: eurInput.trim() || undefined,
         parallel: parallelInput.trim() || undefined,
       });
       applyRate({
         date: r.date,
         bcv_rate: r.bcv_rate,
+        eur_bcv_rate: r.eur_bcv_rate,
         parallel_rate: r.parallel_rate,
         effective_rate: r.effective_rate,
         source: r.source,
       });
       setBcvInput("");
+      setEurInput("");
       setParallelInput("");
-      setRateMsg({ ok: true, text: `Tasa cargada (${r.date}).` });
+      setRateMsg({ ok: true, text: `Tasas cargadas (${r.date}).` });
     } catch (e) {
       setRateMsg({ ok: false, text: getApiError(e) });
     } finally {
@@ -217,15 +224,22 @@ export default function SystemSettings() {
       applyRate({
         date: r.date,
         bcv_rate: r.bcv_rate,
+        eur_bcv_rate: r.eur_bcv_rate,
         parallel_rate: r.parallel_rate,
         effective_rate: r.effective_rate,
         source: r.source,
       });
       const src = r.provider ? ` (${r.provider})` : "";
-      // Las fuentes de la paralela a veces están caídas: avisa si solo se trajo la BCV.
-      const note =
-        r.parallel_rate == null ? " No había una tasa Euro BCV válida; cárgala manualmente si la necesitas." : "";
-      setRateMsg({ ok: true, text: `Tasa actualizada${src} (${r.date}).${note}` });
+      // Las fuentes del paralelo (y a veces la del euro) están caídas a ratos: avisa
+      // qué faltó para que se pueda cargar a mano.
+      const missing = [
+        r.eur_bcv_rate == null ? "Euro BCV" : null,
+        r.parallel_rate == null ? "paralelo" : null,
+      ].filter(Boolean);
+      const note = missing.length
+        ? ` No se obtuvo ${missing.join(" ni ")}; cárgalo manualmente si lo necesitas.`
+        : "";
+      setRateMsg({ ok: true, text: `Tasas actualizadas${src} (${r.date}).${note}` });
     } catch (e) {
       setRateMsg({ ok: false, text: getApiError(e) });
     } finally {
@@ -371,40 +385,50 @@ export default function SystemSettings() {
         </div>
 
         {/* ── Tasa de cambio ─────────────────────────────────────────── */}
-        <ComponentCard title="Tasa de cambio" desc="Carga la tasa BCV/Euro BCV y elige cómo se convierte USD→VES.">
+        <ComponentCard
+          title="Tasas de cambio"
+          desc="Dólar BCV y Euro BCV son las tasas operativas (con las que se factura). El paralelo se registra solo como referencia del valor real del dinero y alimenta el análisis."
+        >
           <div className="rounded-lg bg-gray-50 p-4 dark:bg-white/[0.03]">
             {latest ? (
-              <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="grid grid-cols-2 gap-3 text-center sm:grid-cols-4">
                 <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">BCV</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Dólar BCV</p>
                   <p className="text-base font-semibold text-gray-800 dark:text-white/90">{latest.bcv_rate}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">Euro BCV</p>
+                  <p className="text-base font-semibold text-gray-800 dark:text-white/90">{latest.eur_bcv_rate ?? "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Paralelo</p>
                   <p className="text-base font-semibold text-gray-800 dark:text-white/90">{latest.parallel_rate ?? "—"}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">Efectiva</p>
                   <p className="text-base font-semibold text-brand-500">{latest.effective_rate ?? "—"}</p>
                 </div>
-                <p className="col-span-3 mt-1 text-xs text-gray-400">Vigente del {latest.date}</p>
+                <p className="col-span-2 mt-1 text-xs text-gray-400 sm:col-span-4">Vigente del {latest.date}</p>
               </div>
             ) : (
               <p className="text-sm text-gray-500 dark:text-gray-400">No hay ninguna tasa cargada.</p>
             )}
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="BCV (Bs/USD)">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Field label="Dólar BCV (Bs/USD)">
               <Input type="number" step={0.0001} placeholder="36.50" value={bcvInput} onChange={(e) => setBcvInput(e.target.value)} />
             </Field>
-            <Field label="Euro BCV (Bs/USD)">
+            <Field label="Euro BCV (Bs/EUR)">
+              <Input type="number" step={0.0001} placeholder="39.42" value={eurInput} onChange={(e) => setEurInput(e.target.value)} />
+            </Field>
+            <Field label="Paralelo (Bs/USD)">
               <Input type="number" step={0.0001} placeholder="40.00" value={parallelInput} onChange={(e) => setParallelInput(e.target.value)} />
             </Field>
           </div>
           <div className="flex flex-wrap gap-3">
             <Button size="sm" onClick={handleSetRate} disabled={rateBusy}>
-              {rateBusy ? "…" : "Cargar tasa manual"}
+              {rateBusy ? "…" : "Cargar tasas manualmente"}
             </Button>
             <Button size="sm" variant="outline" onClick={handleFetchRate} disabled={rateBusy}>
               Actualizar desde API
@@ -416,7 +440,10 @@ export default function SystemSettings() {
 
           <hr className="border-gray-100 dark:border-gray-800" />
 
-          <Field label="Base para convertir USD→VES" help="Qué tasa usan ventas, presupuestos y reportes.">
+          <Field
+            label="Base para convertir USD→VES"
+            help="Qué tasa usan ventas, presupuestos y reportes. Lo habitual es una de las oficiales; el paralelo se usa para analizar, no para facturar."
+          >
             <Select options={RATE_BASIS_OPTIONS} defaultValue={str("rate_basis")} onChange={(v) => set("rate_basis", v)} />
           </Field>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

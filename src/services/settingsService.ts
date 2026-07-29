@@ -55,9 +55,12 @@ export interface SystemSettingsData {
   updated_at: string;
 }
 
+// Tres tasas: las dos OPERATIVAS y oficiales del BCV (Dólar BCV en Bs/USD y Euro BCV
+// en Bs/EUR) y el paralelo (Bs/USD), que es solo referencia analítica.
 export interface LatestRate {
   date: string;
   bcv_rate: string;
+  eur_bcv_rate: string | null;
   parallel_rate: string | null;
   effective_rate: string | null;
   source: string;
@@ -96,6 +99,7 @@ export interface SettingsResponse {
 export interface RatePayload {
   date: string;
   bcv_rate: string;
+  eur_bcv_rate: string | null;
   parallel_rate: string | null;
   effective_rate: string | null;
   rate_basis: string;
@@ -136,7 +140,7 @@ export const settingsService = {
     return api.patch<SettingsResponse>("/settings/", patch).then((r) => r.data);
   },
 
-  setExchangeRate(input: { bcv: string; parallel?: string; date?: string }): Promise<RatePayload> {
+  setExchangeRate(input: { bcv: string; eur?: string; parallel?: string; date?: string }): Promise<RatePayload> {
     return api.post<RatePayload>("/settings/exchange-rate", input).then((r) => r.data);
   },
 

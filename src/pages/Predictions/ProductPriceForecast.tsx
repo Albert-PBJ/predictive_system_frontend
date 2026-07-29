@@ -30,13 +30,16 @@ export default function ProductPriceForecast() {
   }, [product, horizon]);
 
   // El precio en USD es estable; el equivalente en Bs sube con la tasa pronosticada.
+  // Se usa la tasa OPERATIVA configurada (la que el backend informa en meta), que es la
+  // misma con la que se factura.
   const vesNote = useMemo(() => {
     const last = data?.forecast?.[data.forecast.length - 1];
     if (!last || last.value_ves == null) return null;
+    const rateLabel = (data?.meta?.ves_rate_label as string) || "Dólar BCV";
     return (
       <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-        Equivalente estimado en {last.label}: <strong>{fmtVES(last.value_ves)}</strong> (precio USD × tasa Euro BCV
-        pronosticada).
+        Equivalente estimado en {last.label}: <strong>{fmtVES(last.value_ves)}</strong> (precio USD × tasa{" "}
+        {rateLabel} pronosticada).
       </p>
     );
   }, [data]);
