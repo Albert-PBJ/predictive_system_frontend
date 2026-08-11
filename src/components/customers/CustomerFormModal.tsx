@@ -22,7 +22,7 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   customer: Customer | null; // null = crear
-  onSaved: () => void;
+  onSaved: (saved: Customer) => void; // recibe el cliente creado/editado
 }
 
 const EMPTY = {
@@ -117,9 +117,10 @@ export default function CustomerFormModal({ isOpen, onClose, customer, onSaved }
 
     setSubmitting(true);
     try {
-      if (isEdit) await customersService.update(customer!.id, payload);
-      else await customersService.create(payload);
-      onSaved();
+      const saved = isEdit
+        ? await customersService.update(customer!.id, payload)
+        : await customersService.create(payload);
+      onSaved(saved);
       onClose();
     } catch (err) {
       setError(getApiError(err, "No se pudo guardar el cliente."));
